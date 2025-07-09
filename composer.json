@@ -1,0 +1,33 @@
+{
+    "name": "esanj/auth-bridge",
+    "description": "AuthBridge package for connecting OAuth to other services.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Esanj Tech Team",
+            "email": "tech@esanj.ir"
+        }
+    ],
+    "require": {
+        "php": "^8.0",
+        "illuminate/support": "^9.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Esanj\\AuthBridge\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Esanj\\AuthBridge\\AuthBridgeServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "require-dev": {
+        "phpunit/phpunit": "^12.2"
+    }
+}
