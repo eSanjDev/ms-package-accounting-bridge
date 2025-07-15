@@ -20,6 +20,6 @@ return [
 
     'route_path' => [
         'redirect' => env('ACCOUNTING_BRIDGE_PATH_REDIRECT', 'login'),
-        'callback' => env('ACCOUNTING_BRIDGE_PATH_CALLBACK', 'login'),
+        'callback' => env('ACCOUNTING_BRIDGE_PATH_CALLBACK', 'callback'),
     ],
 ];
