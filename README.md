@@ -31,14 +31,13 @@ php artisan vendor:publish --provider="Esanj\\AuthBridge\\AuthBridgeServiceProvi
 ACCOUNTING_BRIDGE_CLIENT_ID=your-client-id
 ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret
 ACCOUNTING_BRIDGE_BASE_URL=https://accounting.example.com
+ACCOUNTING_BRIDGE_REDIRECT_ROUTE=auth-bridge.callback
+ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
 ACCOUNTING_BRIDGE_SUCCESS_REDIRECT=/
+ACCOUNTING_BRIDGE_ROUTE_PREFIX=accounting
+ACCOUNTING_BRIDGE_PATH_REDIRECT=login
+ACCOUNTING_BRIDGE_PATH_CALLBACK=login
 ```
-
-- `ACCOUNTING_BRIDGE_CLIENT_ID=your-client-id`: Client ID obtained from the Accounting microservice
-- `ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret`: Client Secret obtained from the Accounting microservice
-- `ACCOUNTING_BRIDGE_BASE_URL=https://accounting.example.com`: Base URL of the Accounting microservice
-- `ACCOUNTING_BRIDGE_SUCCESS_REDIRECT=/`: Route that handles the authentication callback from the Accounting microservice
-
 
 3. **Config file options (`config/auth_bridge.php`):**
 
