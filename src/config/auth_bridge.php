@@ -7,7 +7,7 @@ return [
 
     'base_url' => env('ACCOUNTING_BRIDGE_BASE_URL'),
 
-    'redirect_route' => env('ACCOUNTING_BRIDGE_REDIRECT_ROUTE', 'auth-bridge.callback'),
+    'redirect_url' => env('ACCOUNTING_BRIDGE_REDIRECT_URL', 'http://localhost/accounting/callback'),
 
     'auth2_prompt' => env('ACCOUNTING_BRIDGE_OAUTH_PROMPT', 'consent'),
 
