@@ -7,31 +7,49 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/**
- * Manages OAuth2 authentication using Client Credentials Grant.
- */
 class ClientCredentialsService
 {
+    private const CACHE_PREFIX = 'auth_bridge_cc_token_';
+    private const CACHE_BUFFER_SECONDS = 60;
+    private const DEFAULT_EXPIRES_IN = 3600;
+
     /**
-     * Retrieve an OAuth2 token dynamically based on the provided client credentials.
-     *
-     * @param string $clientId
-     * @param string $clientSecret
-     * @param ?string $scope
-     * @return array|null
      * @throws ConnectionException
      */
-    public function getAccessToken(string $clientId, string $clientSecret, string $scope = null): ?array
+    public function getAccessToken(string $clientId, string $clientSecret, ?string $scope = null): ?array
     {
-        $cacheKey = md5("client_credentials_token_{$clientId}_{$clientSecret}_{$scope}");
+        $cacheKey = $this->buildCacheKey($clientId, $scope);
 
-        // Check if a valid token exists in cache
-        if (Cache::has($cacheKey)) {
-            return Cache::get($cacheKey);
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null) {
+            return $cached;
         }
 
-        // Request a new token from the Accounting microservice
-        $response = Http::asForm()->post(config('auth_bridge.base_url') . '/oauth/token', [
+        $tokenData = $this->requestToken($clientId, $clientSecret, $scope);
+
+        if ($tokenData === null) {
+            return null;
+        }
+
+        $ttl = ($tokenData['expires_in'] ?? self::DEFAULT_EXPIRES_IN) - self::CACHE_BUFFER_SECONDS;
+        Cache::put($cacheKey, $tokenData, max($ttl, 1));
+
+        return $tokenData;
+    }
+
+    private function buildCacheKey(string $clientId, ?string $scope): string
+    {
+        return self::CACHE_PREFIX . hash('sha256', "{$clientId}_{$scope}");
+    }
+
+    /**
+     * @throws ConnectionException
+     */
+    private function requestToken(string $clientId, string $clientSecret, ?string $scope): ?array
+    {
+        $baseUrl = config('esanj.auth_bridge.base_url');
+
+        $response = Http::asForm()->post("{$baseUrl}/oauth/token", [
             'grant_type' => 'client_credentials',
             'client_id' => $clientId,
             'client_secret' => $clientSecret,
@@ -39,20 +57,15 @@ class ClientCredentialsService
         ]);
 
         if ($response->failed()) {
-            Log::channel('emergency')->alert('fail oauth / auth-bridge / client credentials', [
+            Log::channel('emergency')->alert('OAuth client credentials failed', [
                 'service' => 'ClientCredentialsService',
-                'json' => $response->json(),
-                'status' => $response->getStatusCode(),
+                'client_id' => $clientId,
+                'status' => $response->status(),
+                'error' => $response->json('error'),
             ]);
             return null;
         }
 
-        $tokenData = $response->json();
-        $expiresIn = $tokenData['expires_in'] ?? 3600;
-
-        // Store the token in cache with a small buffer before expiration
-        Cache::put($cacheKey, $tokenData, $expiresIn - 60);
-
-        return $tokenData;
+        return $response->json();
     }
 }
