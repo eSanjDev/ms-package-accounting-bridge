@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Esanj\AuthBridge;
 
+use Esanj\AuthBridge\Contracts\AuthBridgeServiceInterface;
+use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
 use Esanj\AuthBridge\Services\AuthBridgeService;
 use Esanj\AuthBridge\Services\ClientCredentialsService;
 use Illuminate\Support\ServiceProvider;
@@ -24,7 +28,15 @@ class AuthBridgeServiceProvider extends ServiceProvider
             'esanj.auth_bridge'
         );
 
-        $this->app->singleton(AuthBridgeService::class);
-        $this->app->singleton(ClientCredentialsService::class);
+        $this->registerServices();
+    }
+
+    private function registerServices(): void
+    {
+        $this->app->singleton(AuthBridgeServiceInterface::class, AuthBridgeService::class);
+        $this->app->singleton(ClientCredentialsServiceInterface::class, ClientCredentialsService::class);
+
+        $this->app->alias(AuthBridgeServiceInterface::class, AuthBridgeService::class);
+        $this->app->alias(ClientCredentialsServiceInterface::class, ClientCredentialsService::class);
     }
 }
