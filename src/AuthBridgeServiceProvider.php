@@ -33,10 +33,12 @@ class AuthBridgeServiceProvider extends ServiceProvider
 
     private function registerServices(): void
     {
-        $this->app->singleton(AuthBridgeServiceInterface::class, AuthBridgeService::class);
-        $this->app->singleton(ClientCredentialsServiceInterface::class, ClientCredentialsService::class);
+        $this->app->singleton(AuthBridgeServiceInterface::class, function ($app) {
+            return new AuthBridgeService();
+        });
 
-        $this->app->alias(AuthBridgeServiceInterface::class, AuthBridgeService::class);
-        $this->app->alias(ClientCredentialsServiceInterface::class, ClientCredentialsService::class);
+        $this->app->singleton(ClientCredentialsServiceInterface::class, function ($app) {
+            return new ClientCredentialsService();
+        });
     }
 }
