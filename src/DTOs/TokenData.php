@@ -7,16 +7,16 @@ namespace Esanj\AuthBridge\DTOs;
 use DateTimeImmutable;
 use JsonSerializable;
 
-final class TokenData implements JsonSerializable
+final readonly class TokenData implements JsonSerializable
 {
-    public readonly DateTimeImmutable $expiresAt;
+    public DateTimeImmutable $expiresAt;
 
     public function __construct(
-        public readonly string $accessToken,
-        public readonly string $tokenType,
-        public readonly int $expiresIn,
-        public readonly ?string $refreshToken = null,
-        public readonly ?string $scope = null,
+        public string  $accessToken,
+        public string  $tokenType,
+        public int     $expiresIn,
+        public ?string $refreshToken = null,
+        public ?string $scope = null,
     ) {
         $this->expiresAt = (new DateTimeImmutable())->modify("+{$expiresIn} seconds");
     }

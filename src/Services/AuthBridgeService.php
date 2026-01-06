@@ -13,6 +13,7 @@ use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
 {
@@ -41,16 +42,32 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
     }
 
-    public function exchangeAuthorizationCodeForAccessToken(string $code, ?string $redirectUri = null): TokenData
+    public function buildAuthorizationUrl(): string
     {
-        $redirectUri = $redirectUri ?? $this->defaultRedirectUrl;
+        $state = Str::random(40);
 
+        $request = new AuthorizationRequest(
+            clientId: $this->getClientId(),
+            redirectUri: $this->getRedirectUrl(),
+            state: $state,
+            prompt: $this->getPrompt(),
+        );
+
+        $url = $this->getBaseUrl() . self::OAUTH_AUTHORIZE_PATH . "?" . $request->toQueryString();
+
+        AuthorizationRedirecting::dispatch($request, $url);
+
+        return $url;
+    }
+
+    public function exchangeAuthorizationCodeForAccessToken(string $code): TokenData
+    {
         try {
-            $response = Http::asForm()->post($this->baseUrl . self::OAUTH_TOKEN_PATH, [
+            $response = Http::asForm()->post($this->getBaseUrl() . self::OAUTH_TOKEN_PATH, [
                 'grant_type' => 'authorization_code',
-                'client_id' => $this->clientId,
-                'client_secret' => $this->clientSecret,
-                'redirect_uri' => $redirectUri,
+                'client_id' => $this->getClientId(),
+                'client_secret' => $this->getClientSecret(),
+                'redirect_uri' => $this->getRedirectUrl(),
                 'code' => $code,
             ]);
         } catch (ConnectionException $e) {
@@ -74,42 +91,6 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         return $tokenData;
     }
 
-    public function buildAuthorizationUrl(string $state, ?string $callbackUrl = null): string
-    {
-        $redirectUri = $this->getRedirectUrl($callbackUrl);
-
-        $request = new AuthorizationRequest(
-            clientId: $this->clientId,
-            redirectUri: $redirectUri,
-            state: $state,
-            prompt: $this->prompt,
-        );
-
-        $url = $this->baseUrl . self::OAUTH_AUTHORIZE_PATH . '?' . $request->toQueryString();
-
-        AuthorizationRedirecting::dispatch($request, $url);
-
-        return $url;
-    }
-
-    public function getRedirectUrl(?string $customUrl = null): string
-    {
-        if ($customUrl !== null && $customUrl !== '') {
-            if ($this->isAbsoluteUrl($customUrl)) {
-                return $customUrl;
-            }
-
-            return rtrim(config('app.url', ''), '/') . '/' . ltrim($customUrl, '/');
-        }
-
-        return $this->defaultRedirectUrl;
-    }
-
-    private function isAbsoluteUrl(string $url): bool
-    {
-        return str_starts_with($url, 'http://') || str_starts_with($url, 'https://');
-    }
-
     public function getClientId(): string
     {
         return $this->clientId;
@@ -118,5 +99,20 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function getBaseUrl(): string
     {
         return $this->baseUrl;
+    }
+
+    public function getClientSecret(): string
+    {
+        return $this->clientSecret;
+    }
+
+    public function getRedirectUrl(): string
+    {
+        return $this->defaultRedirectUrl;
+    }
+
+    public function getPrompt(): string
+    {
+        return $this->prompt;
     }
 }

@@ -103,4 +103,15 @@ return [
     |
     */
     'allowed_callback_urls' => explode(',', env('ACCOUNTING_BRIDGE_ALLOWED_CALLBACKS', '')),
+
+
+   /*
+   |--------------------------------------------------------------------------
+   | OAuth Public Key
+   |--------------------------------------------------------------------------
+   |
+   | Path to the public key file for OAuth authentication.
+   |
+   */
+    'public_key_path' => env('ACCOUNTING_BRIDGE_KEY_PATH', storage_path('oauth-public.key')),
 ];

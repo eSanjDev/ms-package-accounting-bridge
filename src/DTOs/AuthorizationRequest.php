@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Esanj\AuthBridge\DTOs;
 
-final class AuthorizationRequest
+final readonly class AuthorizationRequest
 {
     public function __construct(
-        public readonly string $clientId,
-        public readonly string $redirectUri,
-        public readonly string $state,
-        public readonly string $responseType = 'code',
-        public readonly string $scope = '',
-        public readonly string $prompt = 'consent',
-        public readonly ?string $successRedirect = null,
+        public string  $clientId,
+        public string  $redirectUri,
+        public string  $state,
+        public string  $responseType = 'code',
+        public string  $scope = '',
+        public string  $prompt = 'consent',
+        public ?string $successRedirect = null,
     ) {}
 
     public function toQueryString(): string

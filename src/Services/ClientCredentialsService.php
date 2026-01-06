@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace Esanj\AuthBridge\Services;
 
+use DomainException;
 use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
 use Esanj\AuthBridge\DTOs\TokenData;
 use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
+use Esanj\AuthBridge\Exceptions\ExtractJWTException;
 use Esanj\AuthBridge\Exceptions\TokenRequestException;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use stdClass;
+use UnexpectedValueException;
 
 class ClientCredentialsService implements ClientCredentialsServiceInterface
 {
@@ -34,7 +41,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         $cacheKey = $this->buildCacheKey($clientId, $scope);
 
         $cached = Cache::get($cacheKey);
-        if ($cached instanceof TokenData && ! $cached->isExpired()) {
+        if ($cached instanceof TokenData && !$cached->isExpired()) {
             return $cached;
         }
 
@@ -55,11 +62,12 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     }
 
     private function requestAndCacheToken(
-        string $clientId,
-        string $clientSecret,
+        string  $clientId,
+        string  $clientSecret,
         ?string $scope,
-        string $cacheKey
-    ): TokenData {
+        string  $cacheKey
+    ): TokenData
+    {
         $tokenData = $this->requestToken($clientId, $clientSecret, $scope);
 
         $ttl = max($tokenData->expiresIn - self::CACHE_BUFFER_SECONDS, 1);
@@ -106,5 +114,30 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
             'status' => $status,
             'error' => $error,
         ]);
+    }
+
+
+    /**
+     * @param string $jwt
+     * @return stdClass
+     * @throws ExtractJWTException
+     */
+    public function extractJwt(string $jwt): stdClass
+    {
+        $publicKeyPath = config('esanj.auth_bridge.public_key_path');
+
+        if (!File::exists($publicKeyPath)) {
+            throw  ExtractJWTException::publicKeyNotFound();
+        }
+
+        $publicKey = file_get_contents($publicKeyPath);
+
+        try {
+            $decoded = JWT::decode($jwt, new Key($publicKey, 'RS256'));
+        } catch (DomainException|UnexpectedValueException $e) {
+            throw ExtractJWTException::invalidToken($e->getMessage());
+        }
+
+        return $decoded;
     }
 }
