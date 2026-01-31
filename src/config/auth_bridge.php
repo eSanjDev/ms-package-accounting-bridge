@@ -92,18 +92,6 @@ return [
         'callback' => $callbackPath,
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Allowed Callback URLs (Security)
-    |--------------------------------------------------------------------------
-    |
-    | List of allowed callback URL patterns for security.
-    | Empty array means any URL is allowed (not recommended for production).
-    | Supports wildcards: ['https://*.example.com/*', 'https://app.example.com/callback']
-    |
-    */
-    'allowed_callback_urls' => explode(',', env('ACCOUNTING_BRIDGE_ALLOWED_CALLBACKS', '')),
-
 
    /*
    |--------------------------------------------------------------------------
