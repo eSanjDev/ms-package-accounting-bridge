@@ -13,6 +13,7 @@ use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
@@ -54,6 +55,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         );
 
         $url = $this->getBaseUrl() . self::OAUTH_AUTHORIZE_PATH . "?" . $request->toQueryString();
+
+        Session::put(config('esanj.auth_bridge.session_state_key', $state));
 
         AuthorizationRedirecting::dispatch($request, $url);
 

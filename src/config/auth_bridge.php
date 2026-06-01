@@ -93,13 +93,26 @@ return [
     ],
 
 
-   /*
-   |--------------------------------------------------------------------------
-   | OAuth Public Key
-   |--------------------------------------------------------------------------
-   |
-   | Path to the public key file for OAuth authentication.
-   |
-   */
+    /*
+    |--------------------------------------------------------------------------
+    | OAuth Public Key
+    |--------------------------------------------------------------------------
+    |
+    | Path to the public key file for OAuth authentication.
+    |
+    */
     'public_key_path' => env('ACCOUNTING_BRIDGE_KEY_PATH', storage_path('oauth-public.key')),
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Session Keys
+    |--------------------------------------------------------------------------
+    |
+    | These keys are used to store the OAuth state and access token in the
+    | session during the authentication bridge process.
+    |
+    */
+    'session_state_key' => 'auth_bridge_state',
+    'session_token_key' => 'auth_bridge',
 ];

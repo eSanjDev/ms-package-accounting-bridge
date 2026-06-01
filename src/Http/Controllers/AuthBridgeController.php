@@ -14,9 +14,6 @@ use Illuminate\Support\Facades\Session;
 
 class AuthBridgeController extends Controller
 {
-    private const SESSION_STATE_KEY = 'auth_bridge_state';
-    private const SESSION_TOKEN_KEY = 'auth_bridge';
-
     public function __construct(
         private readonly AuthBridgeServiceInterface $authBridgeService
     )
@@ -50,7 +47,7 @@ class AuthBridgeController extends Controller
 
         $tokenData = $this->authBridgeService->exchangeAuthorizationCodeForAccessToken($code);
 
-        Session::put(self::SESSION_TOKEN_KEY, $tokenData->toArray());
+        Session::put(config('esanj.auth_bridge.session_token_key'), $tokenData->toArray());
 
 
         return redirect()->to(config('esanj.auth_bridge.success_redirect', '/'));
@@ -66,7 +63,7 @@ class AuthBridgeController extends Controller
             return;
         }
 
-        $storedState = $request->session()->pull(self::SESSION_STATE_KEY);
+        $storedState = $request->session()->pull(config('esanj.auth_bridge.session_state_key'));
         $requestState = $request->input('state');
 
         if (empty($storedState)) {
