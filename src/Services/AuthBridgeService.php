@@ -56,7 +56,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         $url = $this->getBaseUrl() . self::OAUTH_AUTHORIZE_PATH . "?" . $request->toQueryString();
 
-        Session::put(config('esanj.auth_bridge.session_state_key', $state));
+        Session::put(config('esanj.auth_bridge.session_state_key'), $state);
 
         AuthorizationRedirecting::dispatch($request, $url);
 
