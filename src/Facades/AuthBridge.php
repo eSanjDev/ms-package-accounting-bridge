@@ -10,11 +10,13 @@ use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Session;
 
 /**
- * @method static TokenData exchangeAuthorizationCodeForAccessToken(string $code, ?string $redirectUri = null)
- * @method static string buildAuthorizationUrl(string $state, ?string $callbackUrl = null)
- * @method static string getRedirectUrl(?string $customUrl = null)
+ * @method static string buildAuthorizationUrl()
+ * @method static TokenData exchangeAuthorizationCodeForAccessToken(string $code)
  * @method static string getClientId()
+ * @method static string getClientSecret()
  * @method static string getBaseUrl()
+ * @method static string getRedirectUrl()
+ * @method static string getPrompt()
  *
  * @see \Esanj\AuthBridge\Services\AuthBridgeService
  */

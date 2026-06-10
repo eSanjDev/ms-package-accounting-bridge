@@ -1,24 +1,28 @@
 # AuthBridge
 
-**AuthBridge** is a comprehensive Laravel package for OAuth 2.0 authentication integration. While originally designed for the Accounting microservice, it provides a flexible and secure bridge to any OAuth 2.0 authorization server, enabling seamless authentication flows including Authorization Code Grant and Client Credentials Grant.
+**AuthBridge** is a Laravel package that connects your app to an **OAuth 2.0** authorization server. It handles the
+**Authorization Code** flow (redirect users to log in, then receive their token) and the **Client Credentials**
+flow (server‑to‑server tokens), plus **RS256 JWT verification** — with an event‑driven design so you decide what
+happens when a token arrives.
+
+> Originally built for the Esanj Accounting service, but it works with any OAuth 2.0 server. Many Esanj packages
+> (e.g. `esanj/managers`) depend on it for login.
 
 ## Features
 
-- Full OAuth 2.0 support (Authorization Code & Client Credentials flows)
-- Secure state validation (CSRF protection)
-- Event-driven architecture for flexible integration
-- JWT token extraction and validation
-- Token caching for Client Credentials flow
-- Open Redirect protection via whitelisting
-- Runtime configuration via query parameters
-- Fully configurable via environment variables
-- Laravel 10+ and 11+ support
+- OAuth 2.0 **Authorization Code** and **Client Credentials** grants.
+- CSRF **state** validation on callback (enforced in production).
+- **Event‑driven**: `TokenReceived`, `TokenExchangeFailed`, `AuthorizationRedirecting`.
+- **JWT** extraction & verification (RS256) against the OAuth server's public key.
+- Automatic **token caching** for the Client Credentials flow.
+- A facade with handy **session token helpers**.
 
 ## Requirements
 
-- **PHP:** 8.1+
-- **Laravel:** 10.x, 11.x, 12.x
-- **OAuth Server:** Any OAuth 2.0 compliant server
+- **PHP:** 8.1 – 8.4
+- **Laravel:** 10.x – 13.x
+- **OAuth Server:** any OAuth 2.0 compliant server
+- `firebase/php-jwt` (installed automatically) — used for JWT verification.
 
 ## Installation
 
@@ -26,390 +30,228 @@
 composer require esanj/auth-bridge
 ```
 
+The service provider and the `AuthBridge` facade are auto‑discovered.
+
 ## Configuration
 
-### 1. Publish the configuration file
+### 1. Publish the config
 
 ```bash
-php artisan vendor:publish --provider="Esanj\\AuthBridge\\AuthBridgeServiceProvider" --tag="config"
+php artisan vendor:publish --tag="esanj-auth-bridge-config"
 ```
 
-### 2. Environment Variables
+This creates `config/esanj/auth_bridge.php` (merged internally under the key `esanj.auth_bridge`).
 
-Add these to your `.env` file:
+### 2. Environment variables
 
 ```env
-# OAuth Client Credentials (required)
+# OAuth client credentials (required)
 ACCOUNTING_BRIDGE_CLIENT_ID=your-client-id
 ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret
 
-# OAuth Server (required)
+# OAuth server base URL (required)
 ACCOUNTING_BRIDGE_BASE_URL=https://oauth-server.example.com
 
-# OAuth Authorization Parameters
-ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent        # Options: none, consent, login
+# Authorization prompt: none | consent | login
+ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
 
-# Callback URL (optional - auto-generated if not set)
+# Callback URL (optional — auto-generated from APP_URL + prefix + callback path if unset)
 ACCOUNTING_BRIDGE_REDIRECT_URL=https://yourapp.com/accounting/callback
 
-# Success Redirect (where to go after successful auth)
+# Where to send the user after a successful login
 ACCOUNTING_BRIDGE_SUCCESS_REDIRECT=/dashboard
 
-# Route Configuration
-ACCOUNTING_BRIDGE_ROUTE_PREFIX=accounting     # Route prefix for auth endpoints
-ACCOUNTING_BRIDGE_PATH_REDIRECT=login         # Path for redirect endpoint
-ACCOUNTING_BRIDGE_PATH_CALLBACK=callback      # Path for callback endpoint
-ACCOUNTING_BRIDGE_MIDDLEWARE=web              # Comma-separated middleware list
+# Routing
+ACCOUNTING_BRIDGE_ROUTE_PREFIX=accounting   # prefix for the two routes
+ACCOUNTING_BRIDGE_PATH_REDIRECT=login        # the "start login" path
+ACCOUNTING_BRIDGE_PATH_CALLBACK=callback     # the OAuth callback path
+ACCOUNTING_BRIDGE_MIDDLEWARE=web             # comma-separated middleware
 
-# JWT Public Key Path (for token verification)
+# JWT public key (RS256) used to verify tokens
 ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
 ```
 
-### 3. Configuration Options
-
-The `config/esanj/auth_bridge.php` file provides:
+### 3. Config options
 
 | Option | Description |
 |--------|-------------|
-| `client_id` | OAuth 2.0 Client ID from authorization server |
-| `client_secret` | OAuth 2.0 Client Secret |
-| `base_url` | Base URL of OAuth authorization server |
-| `redirect_url` | Callback URL (auto-generated from APP_URL if not set) |
-| `auth2_prompt` | OAuth prompt parameter: `none`, `consent`, or `login` |
-| `success_redirect` | Where to redirect after successful authentication |
-| `routes.prefix` | Route prefix for package endpoints |
-| `routes.middleware` | Middleware applied to package routes |
-| `route_path.redirect` | Path for authorization redirect endpoint |
-| `route_path.callback` | Path for OAuth callback endpoint |
-| `public_key_path` | Path to OAuth server's public key for JWT verification |
+| `client_id` / `client_secret` | OAuth 2.0 credentials. |
+| `base_url` | Base URL of the OAuth server. |
+| `redirect_url` | Callback URL (auto‑generated from `APP_URL` if not set). |
+| `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. |
+| `success_redirect` | Where to redirect after a successful login. |
+| `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
+| `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |
+| `public_key_path` | Path to the OAuth server's RS256 public key. |
+| `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
 
 ## Routes
 
-The package registers these routes (customizable via config):
-
-| Method | Path | Name | Description |
-|--------|------|------|-------------|
-| GET | `/{prefix}/{redirect}` | `auth-bridge.redirect` | Initiates OAuth flow |
-| GET | `/{prefix}/{callback}` | `auth-bridge.callback` | Handles OAuth callback |
-
-**Default URLs:**
-- Redirect: `https://yourapp.com/accounting/login`
-- Callback: `https://yourapp.com/accounting/callback`
+| Method | Path (default) | Name | Description |
+|--------|----------------|------|-------------|
+| GET | `/{prefix}/{redirect}` → `/accounting/login` | `auth-bridge.redirect` | Starts the OAuth flow (redirects to the server). |
+| GET | `/{prefix}/{callback}` → `/accounting/callback` | `auth-bridge.callback` | Handles the callback and stores the token. |
 
 ## Usage
 
-### Basic Authentication Flow
+### Authorization Code flow (user login)
 
-#### 1. Redirect User to OAuth Server
-
-In your login view or controller:
+**Step 1 — send the user to log in:**
 
 ```php
-// Simple redirect
 return redirect()->route('auth-bridge.redirect');
-
-// With custom success redirect
-return redirect()->route('auth-bridge.redirect', [
-    'success_redirect' => '/admin/dashboard'
-]);
-
-// With custom callback URL
-return redirect()->route('auth-bridge.redirect', [
-    'callback_url' => 'https://yourapp.com/custom-callback'
-]);
 ```
 
-#### 2. Listen to TokenReceived Event (IMPORTANT!)
+The package builds the authorization URL, stores a random `state` in the session, fires
+`AuthorizationRedirecting`, and redirects to the OAuth server.
 
-This is the **recommended approach** for handling authentication. Create a listener for the `TokenReceived` event:
+**Step 2 — the callback is handled for you.** On return the package validates `state` (in production), exchanges
+the `code` for a token, stores the token in the session under `auth_bridge`, fires `TokenReceived`, and redirects
+to `config('esanj.auth_bridge.success_redirect')`.
 
-```bash
-php artisan make:listener HandleTokenReceived
-```
+> ℹ️ `success_redirect` and the callback URL are taken from **config/env**. (Passing them as query parameters to
+> the route is **not** currently supported — see [Notes](#notes--limitations).)
 
-**app/Listeners/HandleTokenReceived.php:**
+**Step 3 — react to the token via the `TokenReceived` event (recommended).**
 
 ```php
-<?php
-
-namespace App\Listeners;
-
+// app/Listeners/HandleTokenReceived.php
 use Esanj\AuthBridge\Events\TokenReceived;
-use App\Models\User;
+use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class HandleTokenReceived
 {
     public function handle(TokenReceived $event): void
     {
-        $tokenData = $event->tokenData;
+        $token = $event->tokenData;                 // TokenData DTO
+        // $event->grantType === 'authorization_code'
 
-        // Option 1: Extract user info from JWT
-        $jwt = app(\Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface::class)
-            ->extractJwt($tokenData->accessToken);
+        $jwt = app(ClientCredentialsServiceInterface::class)->extractJwt($token->accessToken);
 
-        // Find or create user in your local database
         $user = User::firstOrCreate(
             ['oauth_id' => $jwt->sub],
-            [
-                'email' => $jwt->email,
-                'name' => $jwt->name,
-                // ... other fields
-            ]
+            ['email' => $jwt->email ?? null, 'name' => $jwt->name ?? null],
         );
 
-        // Log the user in
         Auth::login($user);
-
-        // Store token for API calls (optional)
-        $user->update([
-            'access_token' => $tokenData->accessToken,
-            'refresh_token' => $tokenData->refreshToken,
-            'token_expires_at' => $tokenData->expiresAt,
-        ]);
     }
 }
 ```
 
-**app/Providers/EventServiceProvider.php:**
+Register it (Laravel 11+ auto‑discovers listeners; otherwise add it to your `EventServiceProvider`).
+
+**Alternative — read the token from the session:**
 
 ```php
-use Esanj\AuthBridge\Events\TokenReceived;
-use App\Listeners\HandleTokenReceived;
-
-protected $listen = [
-    TokenReceived::class => [
-        HandleTokenReceived::class,
-    ],
-];
-```
-
-#### 3. Access Token Data (Alternative Approach)
-
-If you prefer not to use events, tokens are stored in the session:
-
-```php
-// Get token data from session
 $accessToken = session('auth_bridge.access_token');
 $refreshToken = session('auth_bridge.refresh_token');
-$expiresAt = session('auth_bridge.expires_at');
+$expiresAt   = session('auth_bridge.expires_at');
 
-// Build authorization header
-$tokenType = session('auth_bridge.token_type', 'Bearer');
-$authHeader = "{$tokenType} {$accessToken}";
+// Or via the facade:
+use Esanj\AuthBridge\Facades\AuthBridge;
+$header = AuthBridge::getAuthorizationHeader(); // "Bearer xxx" or null
 ```
 
-### Client Credentials Flow
-
-For server-to-server authentication without user interaction:
+### Client Credentials flow (server‑to‑server)
 
 ```php
 use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
 
-// Inject the service
-public function __construct(
-    private ClientCredentialsServiceInterface $clientCredentials
-) {}
+public function __construct(private ClientCredentialsServiceInterface $cc) {}
 
-// Get access token (automatically cached)
-$tokenData = $this->clientCredentials->getAccessToken(
+$token = $this->cc->getAccessToken(
     clientId: config('esanj.auth_bridge.client_id'),
     clientSecret: config('esanj.auth_bridge.client_secret'),
-    scope: '*'  // optional
+    scope: '*' // optional
 );
 
-// Use the token
 $response = Http::withHeaders([
-    'Authorization' => $tokenData->getAuthorizationHeader(),
+    'Authorization' => $token->getAuthorizationHeader(),
 ])->get('https://api.example.com/data');
 
-// Invalidate cached token (if needed)
-$this->clientCredentials->invalidateToken(
-    clientId: config('esanj.auth_bridge.client_id'),
-    scope: '*'
-);
+// Force a refresh on the next call:
+$this->cc->invalidateToken(config('esanj.auth_bridge.client_id'), '*');
 ```
 
-**Key Features:**
-- Tokens are automatically cached until expiration
-- 60-second buffer before expiration triggers refresh
-- Failed requests dispatch `TokenExchangeFailed` event
+Tokens are cached until ~60 seconds before expiry; failures fire `TokenExchangeFailed`.
 
-### JWT Token Extraction
-
-Extract and verify JWT access tokens:
+### JWT extraction
 
 ```php
 use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
 use Esanj\AuthBridge\Exceptions\ExtractJWTException;
 
 try {
-    $jwt = app(ClientCredentialsServiceInterface::class)
-        ->extractJwt($accessToken);
-
-    // Access JWT claims
+    $jwt = app(ClientCredentialsServiceInterface::class)->extractJwt($accessToken);
     $userId = $jwt->sub;
-    $email = $jwt->email;
-    $scopes = $jwt->scopes;
-
 } catch (ExtractJWTException $e) {
-    // Handle invalid token or missing public key
-    report($e);
+    report($e); // invalid token, or public key missing
 }
 ```
 
-**Requirements:**
-- Public key file must exist at the configured path
-- Public key must match the OAuth server's private key
+Requires the RS256 public key at `config('esanj.auth_bridge.public_key_path')`.
 
 ## Events
 
-The package dispatches these events for advanced integration:
+| Event | Fired when | Payload |
+|-------|------------|---------|
+| `TokenReceived` | A token is obtained (either flow). | `TokenData $tokenData`, `string $grantType` |
+| `TokenExchangeFailed` | A token request/exchange fails. | `AuthBridgeException $exception`, `string $grantType` |
+| `AuthorizationRedirecting` | Just before redirecting to the OAuth server. | `AuthorizationRequest $request`, `string $authorizationUrl` |
 
-### TokenReceived
-
-Dispatched when access token is successfully obtained.
-
-```php
-namespace Esanj\AuthBridge\Events;
-
-class TokenReceived
-{
-    public readonly TokenData $tokenData;
-    public readonly string $grantType; // 'authorization_code' or 'client_credentials'
-}
-```
-
-**Use Cases:**
-- Create/update local user records
-- Log authentication events
-- Trigger post-authentication workflows
-
-### TokenExchangeFailed
-
-Dispatched when token exchange fails.
-
-```php
-namespace Esanj\AuthBridge\Events;
-
-class TokenExchangeFailed
-{
-    public readonly AuthBridgeException $exception;
-    public readonly string $grantType;
-}
-```
-
-**Use Cases:**
-- Log authentication failures
-- Alert monitoring systems
-- Display user-friendly error messages
-
-### AuthorizationRedirecting
-
-Dispatched before redirecting to OAuth server.
-
-```php
-namespace Esanj\AuthBridge\Events;
-
-class AuthorizationRedirecting
-{
-    public readonly AuthorizationRequest $request;
-    public readonly string $authorizationUrl;
-}
-```
-
-**Use Cases:**
-- Log authorization attempts
-- Modify authorization parameters
-- Audit OAuth flows
-
-
-### State Validation
-
-The package automatically:
-- Generates random state tokens (40 characters)
-- Validates state on callback (production only)
-- Throws `InvalidStateException` on mismatch
-
-### Best Practices
-
-1. **Never commit secrets** to version control
-2. **Use HTTPS** in production for all URLs
-3. **Configure allowed callbacks** before deploying
-4. **Store tokens securely** (encrypted database columns)
-5. **Implement token refresh** for long-lived sessions
-6. **Validate JWT signatures** using the public key
-7. **Monitor failed attempts** via `TokenExchangeFailed` event
-
-## Advanced Usage
-
-### Custom Callback Handling
-
-Override the callback URL at runtime:
-
-```php
-return redirect()->route('auth-bridge.redirect', [
-    'callback_url' => 'https://custom-domain.com/oauth/callback'
-]);
-```
-
-### Dynamic Success Redirects
-
-Specify where to redirect after authentication:
-
-```php
-return redirect()->route('auth-bridge.redirect', [
-    'success_redirect' => '/admin/dashboard'
-]);
-```
-
-### Facade Usage
-
-Use the `AuthBridge` facade for direct service access:
+## Facade
 
 ```php
 use Esanj\AuthBridge\Facades\AuthBridge;
 
-// Build authorization URL
-$url = AuthBridge::buildAuthorizationUrl();
+AuthBridge::buildAuthorizationUrl();                         // build the authorize URL
+AuthBridge::exchangeAuthorizationCodeForAccessToken($code);  // exchange a code → TokenData
+AuthBridge::getClientId();
+AuthBridge::getBaseUrl();
 
-// Exchange code for token
-$tokenData = AuthBridge::exchangeAuthorizationCodeForAccessToken($code);
-
-// Get configuration
-$clientId = AuthBridge::getClientId();
-$baseUrl = AuthBridge::getBaseUrl();
+// Session token helpers:
+AuthBridge::getToken();                 // array|null
+AuthBridge::getAccessToken();           // string|null
+AuthBridge::hasToken();                 // bool
+AuthBridge::getAuthorizationHeader();   // "Bearer xxx"|null
+AuthBridge::clearToken();               // forget the session token
 ```
 
-## Error Handling
+## Error handling
 
-The package throws these exceptions:
-
-| Exception | When | How to Handle |
-|-----------|------|---------------|
-| `InvalidStateException` | State validation fails | Log attempt, show error page |
-| `TokenExchangeException` | Token exchange fails | Check credentials, log error |
-| `TokenRequestException` | Client credentials fail | Verify client_id/secret |
-| `ExtractJWTException` | JWT verification fails | Check public key, token validity |
-| `AuthBridgeException` | Base exception class | Catch-all handler |
-
-**Example:**
+| Exception | When |
+|-----------|------|
+| `InvalidStateException` | The OAuth `state` is missing or doesn't match (production). |
+| `TokenExchangeException` | The authorization‑code exchange fails. |
+| `TokenRequestException` | The client‑credentials token request fails. |
+| `ExtractJWTException` | JWT is invalid/expired, or the public key is missing. |
+| `AuthBridgeException` | Base class for all of the above (carries `getContext()`). |
 
 ```php
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 
 try {
-    $tokenData = $authBridge->exchangeAuthorizationCodeForAccessToken($code);
+    $token = AuthBridge::exchangeAuthorizationCodeForAccessToken($code);
 } catch (TokenExchangeException $e) {
-    logger()->error('OAuth token exchange failed', [
-        'error' => $e->getMessage(),
-        'context' => $e->getContext(),
-    ]);
-
+    logger()->error('OAuth exchange failed', ['error' => $e->getMessage(), 'context' => $e->getContext()]);
     return redirect('/login')->with('error', 'Authentication failed');
 }
 ```
 
+## Notes & limitations
+
+- **State (CSRF) validation runs only in production** (`app()->isProduction()`). In local/testing environments the
+  callback skips the state check for convenience.
+- **No runtime query‑parameter overrides.** `success_redirect` and the callback URL come from config/env only;
+  passing `?success_redirect=` or `?callback_url=` to the redirect route has no effect in the current version.
+
+## Documentation
+
+For a complete, beginner‑friendly, step‑by‑step walkthrough — wiring up login, handling the token, the
+client‑credentials flow, JWT verification, and troubleshooting — see **[docs/GUIDE.md](docs/GUIDE.md)**.
+
 ## Credits
 
-Developed and maintained by **Esanj Tech Team**.
+Developed and maintained by the **Esanj Tech Team**.

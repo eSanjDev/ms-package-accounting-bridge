@@ -15,7 +15,7 @@ class AuthBridgeServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/config/auth_bridge.php' => config_path('esanj.auth_bridge.php'),
+            __DIR__ . '/config/auth_bridge.php' => config_path('esanj/auth_bridge.php'),
         ], 'esanj-auth-bridge-config');
 
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
