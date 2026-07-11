@@ -9,15 +9,19 @@ use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 
 interface AuthBridgeServiceInterface
 {
-    /**
-     * Build the authorization URL for OAuth redirect.
-     */
     public function buildAuthorizationUrl(): string;
-
-    /**
-     * Exchange authorization code for access token.
-     *
-     * @throws TokenExchangeException
-     */
+    
     public function exchangeAuthorizationCodeForAccessToken(string $code): TokenData;
+    
+    public function refreshAccessToken(string $refreshToken, ?string $scope = null): TokenData;
+
+    public function getValidToken(): ?TokenData;
+
+    public function getValidAccessToken(): ?string;
+
+    public function getValidAuthorizationHeader(): ?string;
+    
+    public function storeToken(TokenData $tokenData): void;
+    
+    public function clearToken(): void;
 }

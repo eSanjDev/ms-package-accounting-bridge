@@ -196,28 +196,23 @@ class HandleTokenReceived
 That's it — users can now log in. After the listener runs, the package redirects them to your
 `success_redirect`.
 
-> 💡 `TokenReceived` also fires for the client‑credentials flow. If you only want the login flow, check
-> `$event->grantType === 'authorization_code'`.
+> 💡 `TokenReceived` also fires for the client‑credentials flow **and on every silent refresh** (grant type
+> `refresh_token`). If your listener logs the user in, guard it so it only runs on a real login —
+> `if ($event->grantType !== 'authorization_code') return;` — otherwise it would re‑run on each background refresh.
 
 ---
 
 ## 9. Recipe: read the token later
 
-The token is also saved in the session (key `auth_bridge`). Read it anywhere:
+The token is saved in the session (key `auth_bridge`) together with its **refresh token** and absolute expiry.
 
-```php
-$accessToken = session('auth_bridge.access_token');
-$refreshToken = session('auth_bridge.refresh_token');
-$expiresAt    = session('auth_bridge.expires_at');
-```
-
-Or use the facade helpers:
+**Use the facade helpers — they auto‑refresh a stale access token for you:**
 
 ```php
 use Esanj\AuthBridge\Facades\AuthBridge;
 
-AuthBridge::hasToken();                // is there a token in the session?
-AuthBridge::getAccessToken();          // the raw access token string
+AuthBridge::hasToken();                // is there a usable token? (refreshes if needed)
+AuthBridge::getAccessToken();          // a still‑valid access token string, or null
 AuthBridge::getAuthorizationHeader();  // "Bearer xxxx" — ready for an HTTP header
 AuthBridge::clearToken();              // remove it (e.g. on logout)
 ```
@@ -228,6 +223,52 @@ Calling another API with it:
 Http::withHeaders(['Authorization' => AuthBridge::getAuthorizationHeader()])
     ->get('https://api.example.com/me');
 ```
+
+**Raw session access** still works, but it does **not** auto‑refresh — the value may be expired:
+
+```php
+$accessToken = session('auth_bridge.access_token');
+$refreshToken = session('auth_bridge.refresh_token');
+$expiresAt    = session('auth_bridge.expires_at');
+```
+
+Prefer the facade whenever you're about to *use* the token.
+
+---
+
+## 9b. Recipe: keep the user logged in with silent refresh
+
+The access token is short‑lived (e.g. 15 minutes). Instead of forcing the user to log in again, the package uses
+the longer‑lived **refresh token** to fetch a new access token behind the scenes.
+
+**How it works:** when you read the token through the facade, if the access token is expired — or within
+`refresh_buffer_seconds` (default 60) of expiring — the package calls the OAuth server with
+`grant_type=refresh_token`, stores the new access + refresh token in the session, and returns the fresh one. If the
+refresh token itself is no longer valid, the session token is cleared and the helpers return `null`, so you can send
+the user back to `route('auth-bridge.redirect')`.
+
+> ⚠️ **Passport note.** Refresh uses the standard token endpoint `POST /oauth/token` with
+> `grant_type=refresh_token` — **not** a separate `/oauth/token/refresh` route (that path is CSRF‑protected `web`
+> route and returns `419`). Override the endpoint with `ACCOUNTING_BRIDGE_REFRESH_PATH` only if your server truly
+> exposes a different one.
+
+**Want it fully transparent — even for code that reads the session directly?** Attach the middleware so every
+request refreshes the token first:
+
+```php
+Route::middleware(['web', 'auth-bridge.refresh'])->group(function () {
+    // routes that need a guaranteed-fresh accounting token
+});
+```
+
+**Refresh manually** if you ever need to:
+
+```php
+$fresh = AuthBridge::refreshAccessToken($refreshToken);   // → TokenData
+```
+
+> ℹ️ Only the **Authorization Code** (human login) flow has a refresh token. The **Client Credentials** flow
+> (section 10) never issues one — it simply requests a new token from its cache when the old one expires.
 
 ---
 
@@ -371,6 +412,8 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `route_path.redirect` | `ACCOUNTING_BRIDGE_PATH_REDIRECT` | `login` | "Start login" path. |
 | `route_path.callback` | `ACCOUNTING_BRIDGE_PATH_CALLBACK` | `callback` | Callback path. |
 | `public_key_path` | `ACCOUNTING_BRIDGE_KEY_PATH` | `storage/oauth-public.key` | RS256 public key file. |
+| `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
+| `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |
 | `session_token_key` | — | `auth_bridge` | Session key for the stored token. |
 
@@ -385,11 +428,12 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 `InvalidStateException`, `TokenExchangeException`, `TokenRequestException`, `ExtractJWTException`.
 
 **`AuthBridge` facade:**
-`buildAuthorizationUrl()`, `exchangeAuthorizationCodeForAccessToken($code)`, `getClientId()`, `getBaseUrl()`,
-plus session helpers `getToken()`, `getAccessToken()`, `hasToken()`, `getAuthorizationHeader()`, `clearToken()`.
+`buildAuthorizationUrl()`, `exchangeAuthorizationCodeForAccessToken($code)`, `refreshAccessToken($refreshToken)`,
+`getClientId()`, `getBaseUrl()`, plus auto‑refreshing session helpers `getToken()`, `getAccessToken()`,
+`hasToken()`, `getAuthorizationHeader()`, `clearToken()`.
 
 **`TokenData` DTO:** `accessToken`, `tokenType`, `expiresIn`, `refreshToken`, `scope`, `expiresAt`,
-`isExpired()`, `getAuthorizationHeader()`.
+`isExpired()`, `isExpiring($bufferSeconds)`, `hasRefreshToken()`, `getAuthorizationHeader()`.
 
 ---
 

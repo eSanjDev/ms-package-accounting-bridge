@@ -7,11 +7,15 @@ namespace Esanj\AuthBridge\Facades;
 use Esanj\AuthBridge\Contracts\AuthBridgeServiceInterface;
 use Esanj\AuthBridge\DTOs\TokenData;
 use Illuminate\Support\Facades\Facade;
-use Illuminate\Support\Facades\Session;
 
 /**
  * @method static string buildAuthorizationUrl()
  * @method static TokenData exchangeAuthorizationCodeForAccessToken(string $code)
+ * @method static TokenData refreshAccessToken(string $refreshToken, ?string $scope = null)
+ * @method static TokenData|null getValidToken()
+ * @method static string|null getValidAccessToken()
+ * @method static string|null getValidAuthorizationHeader()
+ * @method static void storeToken(TokenData $tokenData)
  * @method static string getClientId()
  * @method static string getClientSecret()
  * @method static string getBaseUrl()
@@ -22,35 +26,33 @@ use Illuminate\Support\Facades\Session;
  */
 class AuthBridge extends Facade
 {
-    private const SESSION_TOKEN_KEY = 'auth_bridge';
-
     protected static function getFacadeAccessor(): string
     {
         return AuthBridgeServiceInterface::class;
     }
 
     /**
-     * Get the stored token data from session.
+     * Get the stored token data as an array (auto-refreshed).
      */
     public static function getToken(): ?array
     {
-        return Session::get(self::SESSION_TOKEN_KEY);
+        return static::getFacadeRoot()->getValidToken()?->toArray();
     }
 
     /**
-     * Get the access token string from session.
+     * Get the access token string (auto-refreshed).
      */
     public static function getAccessToken(): ?string
     {
-        return static::getToken()['access_token'] ?? null;
+        return static::getFacadeRoot()->getValidAccessToken();
     }
 
     /**
-     * Check if user has a valid token in session.
+     * Check whether there is a usable token (auto-refreshed).
      */
     public static function hasToken(): bool
     {
-        return static::getAccessToken() !== null;
+        return static::getFacadeRoot()->getValidToken() !== null;
     }
 
     /**
@@ -58,21 +60,14 @@ class AuthBridge extends Facade
      */
     public static function clearToken(): void
     {
-        Session::forget(self::SESSION_TOKEN_KEY);
+        static::getFacadeRoot()->clearToken();
     }
 
     /**
-     * Get Authorization header value.
+     * Get the "Bearer xxx" authorization header (auto-refreshed).
      */
     public static function getAuthorizationHeader(): ?string
     {
-        $token = static::getToken();
-        if ($token === null) {
-            return null;
-        }
-
-        $tokenType = $token['token_type'] ?? 'Bearer';
-
-        return "{$tokenType} {$token['access_token']}";
+        return static::getFacadeRoot()->getValidAuthorizationHeader();
     }
 }

@@ -10,7 +10,6 @@ use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Session;
 
 class AuthBridgeController extends Controller
 {
@@ -47,8 +46,7 @@ class AuthBridgeController extends Controller
 
         $tokenData = $this->authBridgeService->exchangeAuthorizationCodeForAccessToken($code);
 
-        Session::put(config('esanj.auth_bridge.session_token_key'), $tokenData->toArray());
-
+        $this->authBridgeService->storeToken($tokenData);
 
         return redirect()->to(config('esanj.auth_bridge.success_redirect', '/'));
     }

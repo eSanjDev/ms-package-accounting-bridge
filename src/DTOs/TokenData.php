@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Esanj\AuthBridge\DTOs;
 
 use DateTimeImmutable;
+use Exception;
 use JsonSerializable;
 
 final readonly class TokenData implements JsonSerializable
@@ -17,10 +18,11 @@ final readonly class TokenData implements JsonSerializable
         public int     $expiresIn,
         public ?string $refreshToken = null,
         public ?string $scope = null,
+        ?DateTimeImmutable $expiresAt = null,
     ) {
-        $this->expiresAt = (new DateTimeImmutable())->modify("+{$expiresIn} seconds");
+        $this->expiresAt = $expiresAt ?? (new DateTimeImmutable())->modify("+{$expiresIn} seconds");
     }
-
+    
     public static function fromArray(array $data): self
     {
         return new self(
@@ -29,6 +31,27 @@ final readonly class TokenData implements JsonSerializable
             expiresIn: (int) ($data['expires_in'] ?? 3600),
             refreshToken: $data['refresh_token'] ?? null,
             scope: $data['scope'] ?? null,
+        );
+    }
+    
+    public static function fromStorage(array $data): self
+    {
+        $expiresAt = null;
+        if (!empty($data['expires_at'])) {
+            try {
+                $expiresAt = new DateTimeImmutable($data['expires_at']);
+            } catch (Exception) {
+                $expiresAt = null;
+            }
+        }
+
+        return new self(
+            accessToken: $data['access_token'],
+            tokenType: $data['token_type'] ?? 'Bearer',
+            expiresIn: (int) ($data['expires_in'] ?? 3600),
+            refreshToken: $data['refresh_token'] ?? null,
+            scope: $data['scope'] ?? null,
+            expiresAt: $expiresAt,
         );
     }
 
@@ -52,6 +75,20 @@ final readonly class TokenData implements JsonSerializable
     public function isExpired(): bool
     {
         return $this->expiresAt <= new DateTimeImmutable();
+    }
+
+    public function isExpiring(int $bufferSeconds = 0): bool
+    {
+        if ($bufferSeconds <= 0) {
+            return $this->isExpired();
+        }
+
+        return $this->expiresAt <= (new DateTimeImmutable())->modify("+{$bufferSeconds} seconds");
+    }
+
+    public function hasRefreshToken(): bool
+    {
+        return $this->refreshToken !== null && $this->refreshToken !== '';
     }
 
     public function getAuthorizationHeader(): string

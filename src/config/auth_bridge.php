@@ -30,6 +30,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Refresh Token Endpoint
+    |--------------------------------------------------------------------------
+    |
+    | Path (relative to base_url) used to exchange a refresh token for a fresh
+    | access token. With Laravel Passport this is the standard OAuth token
+    | endpoint called with grant_type=refresh_token — NOT a separate route.
+    |
+    */
+    'refresh_token_path' => env('ACCOUNTING_BRIDGE_REFRESH_PATH', '/oauth/token'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Refresh Buffer (seconds)
+    |--------------------------------------------------------------------------
+    |
+    | Refresh the access token this many seconds *before* it actually expires,
+    | so a request never goes out with an already-dead token.
+    |
+    */
+    'refresh_buffer_seconds' => (int) env('ACCOUNTING_BRIDGE_REFRESH_BUFFER', 60 * 24 * 30),
+
+    /*
+    |--------------------------------------------------------------------------
     | Redirect URL Configuration
     |--------------------------------------------------------------------------
     |

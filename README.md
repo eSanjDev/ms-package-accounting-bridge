@@ -11,6 +11,7 @@ happens when a token arrives.
 ## Features
 
 - OAuth 2.0 **Authorization Code** and **Client Credentials** grants.
+- **Silent refresh** — the stored access token is transparently refreshed via its refresh token before it expires, so users never notice.
 - CSRF **state** validation on callback (enforced in production).
 - **Event‑driven**: `TokenReceived`, `TokenExchangeFailed`, `AuthorizationRedirecting`.
 - **JWT** extraction & verification (RS256) against the OAuth server's public key.
@@ -69,6 +70,10 @@ ACCOUNTING_BRIDGE_MIDDLEWARE=web             # comma-separated middleware
 
 # JWT public key (RS256) used to verify tokens
 ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
+
+# Silent refresh (optional)
+ACCOUNTING_BRIDGE_REFRESH_PATH=/oauth/token   # Passport uses the token endpoint with grant_type=refresh_token
+ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds before the access token expires
 ```
 
 ### 3. Config options
@@ -83,6 +88,8 @@ ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
 | `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
 | `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |
 | `public_key_path` | Path to the OAuth server's RS256 public key. |
+| `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
+| `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`). |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
 
 ## Routes
@@ -145,14 +152,46 @@ Register it (Laravel 11+ auto‑discovers listeners; otherwise add it to your `E
 **Alternative — read the token from the session:**
 
 ```php
+// Via the facade (recommended — auto-refreshes when the access token is expiring):
+use Esanj\AuthBridge\Facades\AuthBridge;
+$header = AuthBridge::getAuthorizationHeader(); // "Bearer xxx" or null (refreshed silently)
+$access = AuthBridge::getAccessToken();          // always a still-valid access token, or null
+
+// Raw session access (does NOT auto-refresh — may be stale/expired):
 $accessToken = session('auth_bridge.access_token');
 $refreshToken = session('auth_bridge.refresh_token');
 $expiresAt   = session('auth_bridge.expires_at');
-
-// Or via the facade:
-use Esanj\AuthBridge\Facades\AuthBridge;
-$header = AuthBridge::getAuthorizationHeader(); // "Bearer xxx" or null
 ```
+
+### Silent refresh (Authorization Code flow)
+
+When the callback stores the token, both the **access token** and its **refresh token** are kept in the session
+together with the access token's absolute `expires_at`. When the access token is expired — or within
+`refresh_buffer_seconds` of expiring — the package silently exchanges the refresh token for a new access token
+(`POST {refresh_token_path}` with `grant_type=refresh_token`) and rewrites the session. The user never notices.
+
+If the refresh token is itself invalid/expired, the stored token is cleared and the accessors return `null`, so you
+can send the user back through `auth-bridge.redirect` to log in again.
+
+Refresh happens automatically whenever you read the token through the facade
+(`getValidToken()`, `getAccessToken()`, `getAuthorizationHeader()`, `hasToken()`). To refresh **transparently on
+every request** — even for code that reads the session directly — attach the middleware:
+
+```php
+// routes
+Route::middleware(['web', 'auth-bridge.refresh'])->group(function () {
+    // ... routes that rely on a fresh accounting token
+});
+```
+
+You can also refresh explicitly:
+
+```php
+AuthBridge::refreshAccessToken($refreshToken);  // returns a fresh TokenData
+```
+
+> ℹ️ Only the **Authorization Code** flow uses refresh tokens. The **Client Credentials** grant never issues one —
+> that flow already fetches a new token from the cache when the old one expires.
 
 ### Client Credentials flow (server‑to‑server)
 
@@ -208,10 +247,11 @@ use Esanj\AuthBridge\Facades\AuthBridge;
 
 AuthBridge::buildAuthorizationUrl();                         // build the authorize URL
 AuthBridge::exchangeAuthorizationCodeForAccessToken($code);  // exchange a code → TokenData
+AuthBridge::refreshAccessToken($refreshToken);               // exchange a refresh token → TokenData
 AuthBridge::getClientId();
 AuthBridge::getBaseUrl();
 
-// Session token helpers:
+// Session token helpers (all auto-refresh a stale access token):
 AuthBridge::getToken();                 // array|null
 AuthBridge::getAccessToken();           // string|null
 AuthBridge::hasToken();                 // bool

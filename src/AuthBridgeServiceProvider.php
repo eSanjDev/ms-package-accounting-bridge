@@ -6,8 +6,11 @@ namespace Esanj\AuthBridge;
 
 use Esanj\AuthBridge\Contracts\AuthBridgeServiceInterface;
 use Esanj\AuthBridge\Contracts\ClientCredentialsServiceInterface;
+use Esanj\AuthBridge\Http\Middleware\RefreshExpiredToken;
 use Esanj\AuthBridge\Services\AuthBridgeService;
 use Esanj\AuthBridge\Services\ClientCredentialsService;
+use Esanj\AuthBridge\Support\TokenSessionStore;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 
 class AuthBridgeServiceProvider extends ServiceProvider
@@ -19,6 +22,9 @@ class AuthBridgeServiceProvider extends ServiceProvider
         ], 'esanj-auth-bridge-config');
 
         $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+
+        $this->app->make(Router::class)
+            ->aliasMiddleware('auth-bridge.refresh', RefreshExpiredToken::class);
     }
 
     public function register(): void
@@ -33,8 +39,12 @@ class AuthBridgeServiceProvider extends ServiceProvider
 
     private function registerServices(): void
     {
+        $this->app->singleton(TokenSessionStore::class, function ($app) {
+            return new TokenSessionStore();
+        });
+
         $this->app->singleton(AuthBridgeServiceInterface::class, function ($app) {
-            return new AuthBridgeService();
+            return new AuthBridgeService($app->make(TokenSessionStore::class));
         });
 
         $this->app->singleton(ClientCredentialsServiceInterface::class, function ($app) {
