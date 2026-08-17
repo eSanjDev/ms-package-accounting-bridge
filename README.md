@@ -210,8 +210,12 @@ $response = Http::withHeaders([
     'Authorization' => $token->getAuthorizationHeader(),
 ])->get('https://api.example.com/data');
 
-// Force a refresh on the next call:
-$this->cc->invalidateToken(config('esanj.auth_bridge.client_id'), '*');
+// Force a refresh on the next call — pass the same arguments used to fetch it:
+$this->cc->invalidateToken(
+    config('esanj.auth_bridge.client_id'),
+    config('esanj.auth_bridge.client_secret'),
+    '*'
+);
 ```
 
 Tokens are cached until ~60 seconds before expiry; failures fire `TokenExchangeFailed`.

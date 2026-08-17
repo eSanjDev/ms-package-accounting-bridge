@@ -298,7 +298,17 @@ class ReportSync
 ```
 
 - The token is **cached automatically** and reused until ~60 seconds before it expires.
-- Need a fresh one immediately? `$this->cc->invalidateToken(config('esanj.auth_bridge.client_id'), '*');`
+- Need a fresh one immediately? Call `invalidateToken()` with the **same** arguments you passed to
+  `getAccessToken()` — client id, client secret and scope all take part in the cache key, so a mismatch
+  silently clears nothing:
+
+```php
+$this->cc->invalidateToken(
+    config('esanj.auth_bridge.client_id'),
+    config('esanj.auth_bridge.client_secret'),
+    '*'
+);
+```
 
 ---
 

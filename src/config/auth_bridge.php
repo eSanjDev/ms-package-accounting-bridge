@@ -46,10 +46,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | Refresh the access token this many seconds *before* it actually expires,
-    | so a request never goes out with an already-dead token.
+    | so a request never goes out with an already-dead token. Keep it well below
+    | the access token's own lifetime, otherwise every request triggers a refresh.
     |
     */
-    'refresh_buffer_seconds' => (int) env('ACCOUNTING_BRIDGE_REFRESH_BUFFER', 60 * 24 * 30),
+    'refresh_buffer_seconds' => (int) env('ACCOUNTING_BRIDGE_REFRESH_BUFFER', 60),
 
     /*
     |--------------------------------------------------------------------------

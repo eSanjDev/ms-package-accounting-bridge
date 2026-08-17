@@ -38,7 +38,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
 
     public function getAccessToken(string $clientId, string $clientSecret, ?string $scope = null): TokenData
     {
-        $cacheKey = $this->buildCacheKey($clientId, $scope);
+        $cacheKey = $this->buildCacheKey($clientId, $clientSecret, $scope);
 
         $cached = Cache::get($cacheKey);
         if ($cached instanceof TokenData && !$cached->isExpired()) {
@@ -48,15 +48,15 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         return $this->requestAndCacheToken($clientId, $clientSecret, $scope, $cacheKey);
     }
 
-    public function invalidateToken(string $clientId, ?string $scope = null): void
+    public function invalidateToken(string $clientId, string $clientSecret, ?string $scope = null): void
     {
-        $cacheKey = $this->buildCacheKey($clientId, $scope);
+        $cacheKey = $this->buildCacheKey($clientId, $clientSecret, $scope);
         Cache::forget($cacheKey);
     }
 
-    private function buildCacheKey(string $clientId, ?string $scope): string
+    private function buildCacheKey(string $clientId, string $clientSecret, ?string $scope): string
     {
-        $identifier = "{$clientId}_{$scope}";
+        $identifier = "{$clientId}_{$clientSecret}_{$scope}";
 
         return self::CACHE_PREFIX . hash('sha256', $identifier);
     }

@@ -21,7 +21,7 @@ interface ClientCredentialsServiceInterface
     /**
      * Invalidate cached token for specific client.
      */
-    public function invalidateToken(string $clientId, ?string $scope = null): void;
+    public function invalidateToken(string $clientId, string $clientSecret, ?string $scope = null): void;
 
     /**
      * Decode and verify a JWT using the configured RS256 public key.

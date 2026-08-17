@@ -156,6 +156,10 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         try {
             $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope);
         } catch (TokenExchangeException) {
+            if (!$token->isExpired()) {
+                return $token;
+            }
+
             $this->store->forget();
 
             return null;
