@@ -130,6 +130,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | JWT Audience & Issuer
+    |--------------------------------------------------------------------------
+    |
+    | A valid signature only proves a token came from the OAuth server — not that
+    | it was issued for *this* client. The audience defaults to your own
+    | client_id; set a comma-separated list here only if you genuinely need to
+    | accept tokens issued to other clients on the same server. The issuer check
+    | is skipped while expected_issuer is empty.
+    |
+    */
+    'expected_audiences' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE', ''))
+    ))),
+
+    'expected_issuer' => env('ACCOUNTING_BRIDGE_EXPECTED_ISSUER'),
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Keys
     |--------------------------------------------------------------------------
     |

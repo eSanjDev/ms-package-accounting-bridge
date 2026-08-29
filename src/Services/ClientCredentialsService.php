@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use stdClass;
 use UnexpectedValueException;
 
@@ -143,10 +144,49 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
 
         try {
             $decoded = JWT::decode($jwt, new Key($publicKey, 'RS256'));
-        } catch (DomainException|UnexpectedValueException $e) {
+        } catch (DomainException|InvalidArgumentException|UnexpectedValueException $e) {
             throw ExtractJWTException::invalidToken($e->getMessage());
         }
 
+        $this->assertAudience($decoded);
+        $this->assertIssuer($decoded);
+
         return $decoded;
+    }
+
+    private function assertAudience(stdClass $decoded): void
+    {
+        $expected = config('esanj.auth_bridge.expected_audiences')
+            ?: array_filter([(string) config('esanj.auth_bridge.client_id')]);
+
+        if ($expected === []) {
+            return;
+        }
+
+        $aud = $decoded->aud ?? null;
+        $audiences = array_map('strval', array_filter(is_array($aud) ? $aud : [$aud], 'is_scalar'));
+
+        if (array_intersect($expected, $audiences) === []) {
+            throw ExtractJWTException::invalidToken('Token audience does not match this client.', [
+                'aud' => $aud,
+                'expected' => array_values($expected),
+            ]);
+        }
+    }
+
+    private function assertIssuer(stdClass $decoded): void
+    {
+        $expected = config('esanj.auth_bridge.expected_issuer');
+
+        if (empty($expected)) {
+            return;
+        }
+
+        if (($decoded->iss ?? null) !== $expected) {
+            throw ExtractJWTException::invalidToken('Token issuer is not trusted.', [
+                'iss' => $decoded->iss ?? null,
+                'expected' => $expected,
+            ]);
+        }
     }
 }

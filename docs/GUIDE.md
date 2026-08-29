@@ -342,6 +342,12 @@ try {
 The public key must exist at `config('esanj.auth_bridge.public_key_path')` (default
 `storage/oauth-public.key`) and be the RS256 public key matching the server's private key.
 
+> ⚠️ **The signature is not the whole check.** An OAuth server signs every client's tokens with the same key, so a
+> token minted for a different application on that server verifies here just as well. `extractJwt()` also requires
+> `aud` to match — by default your own `client_id`, or the comma‑separated list in
+> `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`. Set `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` to pin `iss` as well. A token
+> without an `aud` claim is rejected; if your server does not issue one, name the accepted value explicitly.
+
 ---
 
 ## 12. Recipe: react to failures & other events
@@ -430,6 +436,8 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `route_path.redirect` | `ACCOUNTING_BRIDGE_PATH_REDIRECT` | `login` | "Start login" path. |
 | `route_path.callback` | `ACCOUNTING_BRIDGE_PATH_CALLBACK` | `callback` | Callback path. |
 | `public_key_path` | `ACCOUNTING_BRIDGE_KEY_PATH` | `storage/oauth-public.key` | RS256 public key file. |
+| `expected_audiences` | `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` | your `client_id` | Accepted `aud` values (comma‑separated). |
+| `expected_issuer` | `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` | *(empty)* | Required `iss`; empty skips the check. |
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
 | `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |

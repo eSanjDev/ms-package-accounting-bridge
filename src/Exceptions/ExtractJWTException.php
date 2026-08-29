@@ -12,11 +12,12 @@ class ExtractJWTException extends AuthBridgeException
         );
     }
 
-    public static function invalidToken(string $message): static
+    public static function invalidToken(string $message, array $context = []): static
     {
         return new static(
             message: $message,
-            code: 401
+            code: 401,
+            context: $context
         );
     }
 }

@@ -71,6 +71,10 @@ ACCOUNTING_BRIDGE_MIDDLEWARE=web             # comma-separated middleware
 # JWT public key (RS256) used to verify tokens
 ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
 
+# JWT claim checks (optional)
+ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE=          # comma-separated; defaults to your own client_id
+ACCOUNTING_BRIDGE_EXPECTED_ISSUER=            # e.g. https://accounting.example.com; empty = unchecked
+
 # Silent refresh (optional)
 ACCOUNTING_BRIDGE_REFRESH_PATH=/oauth/token   # Passport uses the token endpoint with grant_type=refresh_token
 ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds before the access token expires
@@ -88,6 +92,8 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
 | `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |
 | `public_key_path` | Path to the OAuth server's RS256 public key. |
+| `expected_audiences` | Accepted `aud` values (defaults to your `client_id`). |
+| `expected_issuer` | Required `iss` value; empty means the claim is not checked. |
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
 | `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
@@ -242,6 +248,12 @@ try {
 ```
 
 Requires the RS256 public key at `config('esanj.auth_bridge.public_key_path')`.
+
+A valid signature only proves the token came from the OAuth server — on a multi-client server every other
+application's tokens carry that same signature. `extractJwt()` therefore also requires the `aud` claim to be your
+own `client_id`, and rejects the token otherwise (RFC 8725 §3.9). If your app legitimately handles tokens issued to
+other clients, list them in `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`; the exception's `getContext()` shows the `aud`
+that was seen and what was expected.
 
 ## Events
 
