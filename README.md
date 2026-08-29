@@ -83,6 +83,9 @@ ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN=false
 # RFC 7009 revocation endpoint used by revokeToken(); empty means no server-side revocation
 ACCOUNTING_BRIDGE_REVOKE_PATH=
 
+# Log channel for this package's warnings; empty uses the application's default channel
+ACCOUNTING_BRIDGE_LOG_CHANNEL=
+
 # Silent refresh (optional)
 ACCOUNTING_BRIDGE_REFRESH_PATH=/oauth/token   # Passport uses the token endpoint with grant_type=refresh_token
 ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds before the access token expires
@@ -108,6 +111,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
 | `revoke_token_path` | RFC 7009 revocation endpoint for `revokeToken()`; empty disables server-side revocation. |
 | `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
+| `log_channel` | Channel for this package's warnings; empty uses the application's default. |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
 
 ## Routes

@@ -118,12 +118,13 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
 
     private function logError(string $clientId, int $status, string $error): void
     {
-        Log::channel('emergency')->alert('OAuth client credentials failed', [
-            'service' => self::class,
-            'client_id' => $clientId,
-            'status' => $status,
-            'error' => $error,
-        ]);
+        Log::channel(config('esanj.auth_bridge.log_channel'))
+            ->error('OAuth client credentials request failed', [
+                'service' => self::class,
+                'client_id' => $clientId,
+                'status' => $status,
+                'error' => $error,
+            ]);
     }
 
 

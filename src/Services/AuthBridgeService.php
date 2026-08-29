@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
@@ -46,6 +47,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private string $scope;
     private string $refreshTokenPath;
     private string $revokeTokenPath;
+    private ?string $logChannel;
     private ?TokenData $memoizedToken = null;
     private bool $memoized = false;
     private int $refreshBufferSeconds;
@@ -72,6 +74,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->scope = (string) ($config['scope'] ?? '');
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
         $this->revokeTokenPath = (string) ($config['revoke_token_path'] ?? '');
+        $this->logChannel = $config['log_channel'] ?? null;
         $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
         $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
     }
@@ -361,6 +364,11 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->memoized = true;
     }
 
+    private function log(): LoggerInterface
+    {
+        return Log::channel($this->logChannel);
+    }
+
     public function revokeToken(): void
     {
         $token = $this->store->get();
@@ -389,13 +397,13 @@ class AuthBridgeService implements AuthBridgeServiceInterface
                 ]);
 
             if ($response->failed()) {
-                Log::warning('Auth bridge: the OAuth server rejected the token revocation', [
+                $this->log()->warning('Auth bridge: the OAuth server rejected the token revocation', [
                     'status' => $response->status(),
                     'path' => $this->revokeTokenPath,
                 ]);
             }
         } catch (Throwable $e) {
-            Log::warning('Auth bridge: token revocation could not be delivered', [
+            $this->log()->warning('Auth bridge: token revocation could not be delivered', [
                 'error' => $e->getMessage(),
                 'path' => $this->revokeTokenPath,
             ]);

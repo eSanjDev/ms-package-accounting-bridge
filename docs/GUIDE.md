@@ -457,6 +457,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
 | `revoke_token_path` | `ACCOUNTING_BRIDGE_REVOKE_PATH` | *(empty)* | RFC 7009 revocation endpoint; empty disables it. |
 | `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
+| `log_channel` | `ACCOUNTING_BRIDGE_LOG_CHANNEL` | *(empty)* | Channel for this package's warnings; empty uses the app's default. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |
 | `session_token_key` | — | `auth_bridge` | Session key for the stored token. |
 
@@ -471,6 +472,11 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 standard OAuth error fields only, never the raw response body, so it is safe to log):
 `ConfigurationException`, `InvalidStateException`, `TokenExchangeException`, `TokenRequestException`,
 `ExtractJWTException`.
+
+The package logs at `error`/`warning` level on the channel you configure, and nothing above that — deciding what
+deserves waking someone up is the application's call, not a library's. Everything it logs is also published as a
+`TokenExchangeFailed` event, so a listener can route these anywhere without touching `log_channel`. Point the
+channel at a `null` driver to silence the log lines entirely and rely on the event alone.
 
 `ConfigurationException` (500) is thrown as soon as the service is resolved, not when a request finally fails:
 `base_url` must be a valid URL and, in production, HTTPS — a missing one used to build a *relative* authorize URL

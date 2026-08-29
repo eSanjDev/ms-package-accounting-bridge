@@ -209,6 +209,18 @@ return [
     | session during the authentication bridge process.
     |
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Log Channel
+    |--------------------------------------------------------------------------
+    |
+    | Channel this package writes its warnings to. Null uses the application's
+    | own default channel, which is almost always what you want — point it at a
+    | dedicated channel to separate them, or at a 'null' driver to silence them.
+    |
+    */
+    'log_channel' => env('ACCOUNTING_BRIDGE_LOG_CHANNEL'),
+
     'session_state_key' => 'auth_bridge_state',
     'session_token_key' => 'auth_bridge',
 ];
