@@ -52,6 +52,7 @@ ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret
 
 # OAuth server base URL (required)
 ACCOUNTING_BRIDGE_BASE_URL=https://oauth-server.example.com
+ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=false   # allow a non-HTTPS base_url in production
 
 # Authorization prompt: none | consent | login
 ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
@@ -92,7 +93,8 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | Option | Description |
 |--------|-------------|
 | `client_id` / `client_secret` | OAuth 2.0 credentials. |
-| `base_url` | Base URL of the OAuth server. |
+| `base_url` | Base URL of the OAuth server. Required, must be a valid URL, and HTTPS in production. |
+| `allow_insecure_base_url` | Permit a non-HTTPS `base_url` in production (default `false`). |
 | `redirect_url` | Callback URL (auto‑generated from `APP_URL` if not set). |
 | `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. |
 | `scope` | Space-separated scopes for the login flow; empty omits `scope` from the request. |
@@ -319,6 +321,7 @@ revocation as a known limitation — a logged-out refresh token remains usable u
 
 | Exception | When |
 |-----------|------|
+| `ConfigurationException` | `base_url` / `client_id` / `client_secret` are missing or invalid. |
 | `InvalidStateException` | The OAuth `state` is missing or doesn't match (production). |
 | `TokenExchangeException` | The authorization‑code exchange fails. |
 | `TokenRequestException` | The client‑credentials token request fails. |

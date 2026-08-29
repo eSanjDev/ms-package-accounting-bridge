@@ -30,6 +30,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Allow An Insecure Base URL
+    |--------------------------------------------------------------------------
+    |
+    | In production a non-HTTPS base_url is refused, because client_secret is
+    | posted to it in cleartext. Turn this on only when the OAuth server is
+    | reached over a trusted private network.
+    |
+    */
+    'allow_insecure_base_url' => (bool) env('ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Refresh Token Endpoint
     |--------------------------------------------------------------------------
     |

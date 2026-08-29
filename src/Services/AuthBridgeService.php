@@ -10,6 +10,7 @@ use Esanj\AuthBridge\DTOs\TokenData;
 use Esanj\AuthBridge\Events\AuthorizationRedirecting;
 use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
+use Esanj\AuthBridge\Exceptions\ConfigurationException;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Esanj\AuthBridge\Support\TokenSessionStore;
 use Illuminate\Contracts\Cache\Lock;
@@ -57,11 +58,15 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     private function loadConfig(): void
     {
-        $config = config('esanj.auth_bridge');
+        $config = (array) (config('esanj.auth_bridge') ?? []);
 
-        $this->baseUrl = rtrim($config['base_url'] ?? '', '/');
-        $this->clientId = $config['client_id'] ?? '';
-        $this->clientSecret = $config['client_secret'] ?? '';
+        $this->baseUrl = $this->resolveBaseUrl($config);
+        $this->clientId = (string) ($config['client_id'] ?? '');
+        $this->clientSecret = (string) ($config['client_secret'] ?? '');
+
+        if ($this->clientId === '' || $this->clientSecret === '') {
+            throw ConfigurationException::missingCredentials();
+        }
         $this->defaultRedirectUrl = $config['redirect_url'] ?? '';
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
         $this->scope = (string) ($config['scope'] ?? '');
@@ -69,6 +74,23 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->revokeTokenPath = (string) ($config['revoke_token_path'] ?? '');
         $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
         $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
+    }
+
+    private function resolveBaseUrl(array $config): string
+    {
+        $baseUrl = rtrim((string) ($config['base_url'] ?? ''), '/');
+
+        if ($baseUrl === '' || !filter_var($baseUrl, FILTER_VALIDATE_URL)) {
+            throw ConfigurationException::invalidBaseUrl($baseUrl);
+        }
+
+        $allowInsecure = (bool) ($config['allow_insecure_base_url'] ?? false);
+
+        if (!$allowInsecure && app()->isProduction() && !str_starts_with($baseUrl, 'https://')) {
+            throw ConfigurationException::insecureBaseUrl($baseUrl);
+        }
+
+        return $baseUrl;
     }
 
     public function buildAuthorizationUrl(): string

@@ -440,6 +440,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 |-----|-----|---------|---------|
 | `client_id` | `ACCOUNTING_BRIDGE_CLIENT_ID` | — | OAuth client id. |
 | `client_secret` | `ACCOUNTING_BRIDGE_CLIENT_SECRET` | — | OAuth client secret. |
+| `allow_insecure_base_url` | `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL` | `false` | Permit a non-HTTPS `base_url` in production. |
 | `base_url` | `ACCOUNTING_BRIDGE_BASE_URL` | — | OAuth server base URL. |
 | `redirect_url` | `ACCOUNTING_BRIDGE_REDIRECT_URL` | `APP_URL/{prefix}/{callback}` | Callback URL sent to the server. |
 | `auth2_prompt` | `ACCOUNTING_BRIDGE_OAUTH_PROMPT` | `consent` | `none` / `consent` / `login`. |
@@ -468,7 +469,14 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 
 **Exceptions** (all extend `AuthBridgeException`, which has `getContext()` — status, content type and the
 standard OAuth error fields only, never the raw response body, so it is safe to log):
-`InvalidStateException`, `TokenExchangeException`, `TokenRequestException`, `ExtractJWTException`.
+`ConfigurationException`, `InvalidStateException`, `TokenExchangeException`, `TokenRequestException`,
+`ExtractJWTException`.
+
+`ConfigurationException` (500) is thrown as soon as the service is resolved, not when a request finally fails:
+`base_url` must be a valid URL and, in production, HTTPS — a missing one used to build a *relative* authorize URL
+that sent the user to this application's own `/oauth/authorize` and 404'd with nothing to go on, and a `http://`
+one posts `client_secret` in cleartext. Set `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=true` only when the OAuth
+server sits on a trusted private network. `client_id` and `client_secret` must both be present.
 `getCode()` is the HTTP status of the failure — the server's own status, `502` for a `2xx` that carried no usable
 `access_token`, `503` for a connection that never landed. Anything outside `4xx` is treated as transient and never
 clears the user's session.
