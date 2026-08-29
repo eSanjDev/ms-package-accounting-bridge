@@ -165,6 +165,17 @@ return [
     */
     'public_key_path' => env('ACCOUNTING_BRIDGE_KEY_PATH', storage_path('oauth-public.key')),
 
+    /*
+    |--------------------------------------------------------------------------
+    | OAuth Public Key (inline)
+    |--------------------------------------------------------------------------
+    |
+    | The PEM itself, for container platforms that inject secrets as environment
+    | variables rather than files. When set it wins over public_key_path.
+    |
+    */
+    'public_key' => env('ACCOUNTING_BRIDGE_PUBLIC_KEY'),
+
 
     /*
     |--------------------------------------------------------------------------

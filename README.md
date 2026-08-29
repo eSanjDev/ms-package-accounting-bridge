@@ -72,6 +72,7 @@ ACCOUNTING_BRIDGE_MIDDLEWARE=web             # comma-separated middleware
 
 # JWT public key (RS256) used to verify tokens
 ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
+ACCOUNTING_BRIDGE_PUBLIC_KEY=                 # or the PEM itself, for secrets injected as env vars
 
 # JWT claim checks (optional)
 ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE=          # comma-separated; defaults to your own client_id
@@ -105,6 +106,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
 | `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |
 | `public_key_path` | Path to the OAuth server's RS256 public key. |
+| `public_key` | The PEM itself; takes precedence over `public_key_path`. |
 | `expected_audiences` | Accepted `aud` values (defaults to your `client_id`). |
 | `expected_issuer` | Required `iss` value; empty means the claim is not checked. |
 | `redirect_on_failed_login` | Retry the login flow on a failed callback instead of rendering an error (default `false`). |
@@ -263,7 +265,9 @@ try {
 }
 ```
 
-Requires the RS256 public key at `config('esanj.auth_bridge.public_key_path')`.
+Requires the RS256 public key at `config('esanj.auth_bridge.public_key_path')`, or the PEM itself in
+`ACCOUNTING_BRIDGE_PUBLIC_KEY` for platforms that inject secrets as environment variables rather than files.
+Whichever it is, it is read once per request rather than on every claim check.
 
 A valid signature only proves the token came from the OAuth server — on a multi-client server every other
 application's tokens carry that same signature. `extractJwt()` therefore also requires the `aud` claim to be your

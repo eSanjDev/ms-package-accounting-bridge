@@ -353,7 +353,10 @@ try {
 ```
 
 The public key must exist at `config('esanj.auth_bridge.public_key_path')` (default
-`storage/oauth-public.key`) and be the RS256 public key matching the server's private key.
+`storage/oauth-public.key`) and be the RS256 public key matching the server's private key. On container platforms
+that hand secrets over as environment variables, put the PEM straight into `ACCOUNTING_BRIDGE_PUBLIC_KEY` instead —
+it takes precedence, and a value that is not a PEM block is refused rather than quietly falling back to the file.
+Either way the key is read once per request, not once per `extractJwt()` call.
 
 > ⚠️ **The signature is not the whole check.** An OAuth server signs every client's tokens with the same key, so a
 > token minted for a different application on that server verifies here just as well. `extractJwt()` also requires
@@ -451,6 +454,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `route_path.redirect` | `ACCOUNTING_BRIDGE_PATH_REDIRECT` | `login` | "Start login" path. |
 | `route_path.callback` | `ACCOUNTING_BRIDGE_PATH_CALLBACK` | `callback` | Callback path. |
 | `public_key_path` | `ACCOUNTING_BRIDGE_KEY_PATH` | `storage/oauth-public.key` | RS256 public key file. |
+| `public_key` | `ACCOUNTING_BRIDGE_PUBLIC_KEY` | *(empty)* | The PEM inline; wins over `public_key_path`. |
 | `expected_audiences` | `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` | your `client_id` | Accepted `aud` values (comma‑separated). |
 | `expected_issuer` | `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` | *(empty)* | Required `iss`; empty skips the check. |
 | `redirect_on_failed_login` | `ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN` | `false` | Retry login on a failed callback instead of showing an error. |

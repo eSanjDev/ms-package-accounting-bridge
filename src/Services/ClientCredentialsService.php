@@ -15,7 +15,6 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -31,6 +30,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     private const DEFAULT_SCOPE = '*';
 
     private string $baseUrl;
+    private ?string $publicKey = null;
 
     public function __construct()
     {
@@ -135,16 +135,8 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
      */
     public function extractJwt(string $jwt): stdClass
     {
-        $publicKeyPath = config('esanj.auth_bridge.public_key_path');
-
-        if (!File::exists($publicKeyPath)) {
-            throw  ExtractJWTException::publicKeyNotFound();
-        }
-
-        $publicKey = file_get_contents($publicKeyPath);
-
         try {
-            $decoded = JWT::decode($jwt, new Key($publicKey, 'RS256'));
+            $decoded = JWT::decode($jwt, new Key($this->publicKey(), 'RS256'));
         } catch (DomainException|InvalidArgumentException|UnexpectedValueException $e) {
             throw ExtractJWTException::invalidToken($e->getMessage());
         }
@@ -153,6 +145,37 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         $this->assertIssuer($decoded);
 
         return $decoded;
+    }
+
+    private function publicKey(): string
+    {
+        if ($this->publicKey !== null) {
+            return $this->publicKey;
+        }
+
+        $inline = (string) (config('esanj.auth_bridge.public_key') ?? '');
+
+        if (trim($inline) !== '') {
+            if (!str_contains($inline, 'BEGIN PUBLIC KEY')) {
+                throw ExtractJWTException::publicKeyUnusable('the configured public_key is not a PEM block');
+            }
+
+            return $this->publicKey = $inline;
+        }
+
+        $path = (string) (config('esanj.auth_bridge.public_key_path') ?? '');
+
+        if ($path === '' || !is_readable($path)) {
+            throw ExtractJWTException::publicKeyNotFound($path);
+        }
+
+        $contents = file_get_contents($path);
+
+        if ($contents === false || trim($contents) === '') {
+            throw ExtractJWTException::publicKeyUnusable('the key file is empty');
+        }
+
+        return $this->publicKey = $contents;
     }
 
     private function assertAudience(stdClass $decoded): void
