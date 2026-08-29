@@ -423,7 +423,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `route_path.callback` | `ACCOUNTING_BRIDGE_PATH_CALLBACK` | `callback` | Callback path. |
 | `public_key_path` | `ACCOUNTING_BRIDGE_KEY_PATH` | `storage/oauth-public.key` | RS256 public key file. |
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
-| `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. |
+| `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |
 | `session_token_key` | — | `auth_bridge` | Session key for the stored token. |
 

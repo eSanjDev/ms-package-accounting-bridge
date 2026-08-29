@@ -22,6 +22,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const OAUTH_TOKEN_PATH = '/oauth/token';
     private const OAUTH_AUTHORIZE_PATH = '/oauth/authorize';
     private const DEFAULT_REFRESH_BUFFER_SECONDS = 60;
+    private const MAX_REFRESH_BUFFER_SECONDS = 300;
 
     private string $baseUrl;
     private string $clientId;
@@ -47,7 +48,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->defaultRedirectUrl = $config['redirect_url'] ?? '';
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
-        $this->refreshBufferSeconds = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
+        $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
+        $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
     }
 
     public function buildAuthorizationUrl(): string

@@ -89,7 +89,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |
 | `public_key_path` | Path to the OAuth server's RS256 public key. |
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
-| `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`). |
+| `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
 
 ## Routes
