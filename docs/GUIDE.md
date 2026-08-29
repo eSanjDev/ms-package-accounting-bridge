@@ -218,6 +218,12 @@ AuthBridge::clearToken();              // remove it locally
 AuthBridge::revokeToken();             // revoke it on the server, then remove it (use this on logout)
 ```
 
+Within one request the resolved token is memoised, so the common `hasToken()` then
+`getAuthorizationHeader()` pair costs one resolution rather than two — and a refresh the OAuth server has just
+turned down is not retried by every following call. The memo is dropped as soon as the token enters its refresh
+buffer, and `storeToken()` / `clearToken()` update it. Write to the session yourself (`session()->forget(...)`)
+and the memo will not know about it: go through the facade instead.
+
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
 > revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such

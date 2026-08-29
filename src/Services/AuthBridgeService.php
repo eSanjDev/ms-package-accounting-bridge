@@ -44,6 +44,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private string $prompt;
     private string $refreshTokenPath;
     private string $revokeTokenPath;
+    private ?TokenData $memoizedToken = null;
+    private bool $memoized = false;
     private int $refreshBufferSeconds;
 
     public function __construct(
@@ -181,6 +183,28 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     public function getValidToken(): ?TokenData
     {
+        if ($this->hasUsableMemo()) {
+            return $this->memoizedToken;
+        }
+
+        $this->memoizedToken = $this->resolveValidToken();
+        $this->memoized = true;
+
+        return $this->memoizedToken;
+    }
+
+    private function hasUsableMemo(): bool
+    {
+        if (!$this->memoized) {
+            return false;
+        }
+
+        return $this->memoizedToken === null
+            || !$this->memoizedToken->isExpiring($this->refreshBufferSeconds);
+    }
+
+    private function resolveValidToken(): ?TokenData
+    {
         $token = $this->store->get();
 
         if ($token === null) {
@@ -298,12 +322,18 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     {
         $this->store->put($tokenData);
         $this->shareToken($tokenData);
+
+        $this->memoizedToken = $tokenData;
+        $this->memoized = true;
     }
 
     public function clearToken(): void
     {
         $this->store->forget();
         Cache::forget($this->sharedTokenKey());
+
+        $this->memoizedToken = null;
+        $this->memoized = true;
     }
 
     public function revokeToken(): void

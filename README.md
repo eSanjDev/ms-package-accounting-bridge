@@ -291,6 +291,9 @@ AuthBridge::clearToken();               // forget the session token
 AuthBridge::revokeToken();              // revoke it server-side, then forget it
 ```
 
+Reads are memoised per request, so calling `hasToken()` and then `getAccessToken()` resolves the token once, not
+twice. Change the session directly instead of through the facade and the memo will not see it.
+
 ### Logging out
 
 `clearToken()` only drops the token from the session. The refresh token stays valid on the OAuth server for its

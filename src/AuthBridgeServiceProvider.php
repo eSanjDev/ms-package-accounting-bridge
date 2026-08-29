@@ -39,15 +39,15 @@ class AuthBridgeServiceProvider extends ServiceProvider
 
     private function registerServices(): void
     {
-        $this->app->singleton(TokenSessionStore::class, function ($app) {
+        $this->app->scoped(TokenSessionStore::class, function ($app) {
             return new TokenSessionStore();
         });
 
-        $this->app->singleton(AuthBridgeServiceInterface::class, function ($app) {
+        $this->app->scoped(AuthBridgeServiceInterface::class, function ($app) {
             return new AuthBridgeService($app->make(TokenSessionStore::class));
         });
 
-        $this->app->singleton(ClientCredentialsServiceInterface::class, function ($app) {
+        $this->app->scoped(ClientCredentialsServiceInterface::class, function ($app) {
             return new ClientCredentialsService();
         });
     }
