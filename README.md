@@ -55,6 +55,7 @@ ACCOUNTING_BRIDGE_BASE_URL=https://oauth-server.example.com
 
 # Authorization prompt: none | consent | login
 ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
+ACCOUNTING_BRIDGE_SCOPE=                      # space-separated; empty omits the parameter
 
 # Callback URL (optional — auto-generated from APP_URL + prefix + callback path if unset)
 ACCOUNTING_BRIDGE_REDIRECT_URL=https://yourapp.com/accounting/callback
@@ -94,6 +95,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `base_url` | Base URL of the OAuth server. |
 | `redirect_url` | Callback URL (auto‑generated from `APP_URL` if not set). |
 | `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. |
+| `scope` | Space-separated scopes for the login flow; empty omits `scope` from the request. |
 | `success_redirect` | Where to redirect after a successful login. |
 | `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
 | `route_path.redirect` / `route_path.callback` | Paths for the redirect and callback endpoints. |

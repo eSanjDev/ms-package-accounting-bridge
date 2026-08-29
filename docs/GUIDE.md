@@ -443,6 +443,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `base_url` | `ACCOUNTING_BRIDGE_BASE_URL` | — | OAuth server base URL. |
 | `redirect_url` | `ACCOUNTING_BRIDGE_REDIRECT_URL` | `APP_URL/{prefix}/{callback}` | Callback URL sent to the server. |
 | `auth2_prompt` | `ACCOUNTING_BRIDGE_OAUTH_PROMPT` | `consent` | `none` / `consent` / `login`. |
+| `scope` | `ACCOUNTING_BRIDGE_SCOPE` | *(empty)* | Scopes for the login flow; empty omits the parameter so the server's default applies. |
 | `success_redirect` | `ACCOUNTING_BRIDGE_SUCCESS_REDIRECT` | `/` | Where to go after login. |
 | `routes.prefix` | `ACCOUNTING_BRIDGE_ROUTE_PREFIX` | `accounting` | URL prefix for both routes. |
 | `routes.middleware` | `ACCOUNTING_BRIDGE_MIDDLEWARE` | `web` | Middleware (comma‑separated). |

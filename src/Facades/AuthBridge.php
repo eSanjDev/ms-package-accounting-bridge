@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static string getBaseUrl()
  * @method static string getRedirectUrl()
  * @method static string getPrompt()
+ * @method static string getScope()
  *
  * @see \Esanj\AuthBridge\Services\AuthBridgeService
  */

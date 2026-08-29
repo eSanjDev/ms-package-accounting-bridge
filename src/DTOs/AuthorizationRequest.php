@@ -18,13 +18,15 @@ final readonly class AuthorizationRequest
 
     public function toQueryString(): string
     {
-        return http_build_query([
+        $params = array_filter([
             'client_id' => $this->clientId,
             'redirect_uri' => $this->redirectUri,
             'response_type' => $this->responseType,
             'scope' => $this->scope,
             'state' => $this->state,
             'prompt' => $this->prompt,
-        ]);
+        ], static fn (string $value): bool => $value !== '');
+
+        return http_build_query($params);
     }
 }

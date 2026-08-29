@@ -94,6 +94,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | OAuth Scope
+    |--------------------------------------------------------------------------
+    |
+    | Space-separated scopes to request during the Authorization Code flow, e.g.
+    | 'profile accounting:read'. Left empty the parameter is omitted entirely and
+    | the OAuth server applies its own default — which is not the same as asking
+    | for an empty scope.
+    |
+    */
+    'scope' => env('ACCOUNTING_BRIDGE_SCOPE', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Success Redirect URL
     |--------------------------------------------------------------------------
     |

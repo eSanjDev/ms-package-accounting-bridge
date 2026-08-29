@@ -42,6 +42,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private string $clientSecret;
     private string $defaultRedirectUrl;
     private string $prompt;
+    private string $scope;
     private string $refreshTokenPath;
     private string $revokeTokenPath;
     private ?TokenData $memoizedToken = null;
@@ -63,6 +64,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->clientSecret = $config['client_secret'] ?? '';
         $this->defaultRedirectUrl = $config['redirect_url'] ?? '';
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
+        $this->scope = (string) ($config['scope'] ?? '');
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
         $this->revokeTokenPath = (string) ($config['revoke_token_path'] ?? '');
         $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
@@ -77,6 +79,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             clientId: $this->getClientId(),
             redirectUri: $this->getRedirectUrl(),
             state: $state,
+            scope: $this->getScope(),
             prompt: $this->getPrompt(),
         );
 
@@ -400,5 +403,10 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function getPrompt(): string
     {
         return $this->prompt;
+    }
+
+    public function getScope(): string
+    {
+        return $this->scope;
     }
 }
