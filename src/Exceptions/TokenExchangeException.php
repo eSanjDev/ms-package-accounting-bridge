@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Esanj\AuthBridge\Exceptions;
 
+use Esanj\AuthBridge\Exceptions\Concerns\RedirectsToLogin;
+
 class TokenExchangeException extends AuthBridgeException
 {
+    use RedirectsToLogin;
+
     public static function failed(string $error, int $statusCode = 400, array $context = []): self
     {
         return new self(

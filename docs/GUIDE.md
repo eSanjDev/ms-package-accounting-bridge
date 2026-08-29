@@ -438,6 +438,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `public_key_path` | `ACCOUNTING_BRIDGE_KEY_PATH` | `storage/oauth-public.key` | RS256 public key file. |
 | `expected_audiences` | `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` | your `client_id` | Accepted `aud` values (comma‑separated). |
 | `expected_issuer` | `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` | *(empty)* | Required `iss`; empty skips the check. |
+| `redirect_on_failed_login` | `ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN` | `false` | Retry login on a failed callback instead of showing an error. |
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
 | `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |
@@ -455,6 +456,10 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 `getCode()` is the HTTP status of the failure — the server's own status, `502` for a `2xx` that carried no usable
 `access_token`, `503` for a connection that never landed. Anything outside `4xx` is treated as transient and never
 clears the user's session.
+
+They implement `HttpExceptionInterface`, so that status is what the response carries (anything outside `400`-`599`
+becomes `500`). They are still reported — they do not extend Symfony's `HttpException`, the class Laravel skips -
+so a wrong `client_secret` stays visible in your logs while the user gets a `400` rather than a `500`.
 
 **`AuthBridge` facade:**
 `buildAuthorizationUrl()`, `exchangeAuthorizationCodeForAccessToken($code)`, `refreshAccessToken($refreshToken)`,

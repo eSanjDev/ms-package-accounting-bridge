@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Esanj\AuthBridge\Exceptions;
 
+use Esanj\AuthBridge\Exceptions\Concerns\RedirectsToLogin;
+
 class InvalidStateException extends AuthBridgeException
 {
+    use RedirectsToLogin;
+
     public static function mismatch(): self
     {
         return new self(

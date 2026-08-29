@@ -75,6 +75,9 @@ ACCOUNTING_BRIDGE_KEY_PATH=/path/to/oauth-public.key
 ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE=          # comma-separated; defaults to your own client_id
 ACCOUNTING_BRIDGE_EXPECTED_ISSUER=            # e.g. https://accounting.example.com; empty = unchecked
 
+# Send the user back through login when the callback fails, instead of an error page (optional)
+ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN=false
+
 # Silent refresh (optional)
 ACCOUNTING_BRIDGE_REFRESH_PATH=/oauth/token   # Passport uses the token endpoint with grant_type=refresh_token
 ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds before the access token expires
@@ -94,6 +97,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `public_key_path` | Path to the OAuth server's RS256 public key. |
 | `expected_audiences` | Accepted `aud` values (defaults to your `client_id`). |
 | `expected_issuer` | Required `iss` value; empty means the claim is not checked. |
+| `redirect_on_failed_login` | Retry the login flow on a failed callback instead of rendering an error (default `false`). |
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
 | `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
@@ -291,6 +295,16 @@ AuthBridge::clearToken();               // forget the session token
 | `TokenRequestException` | The client‑credentials token request fails. |
 | `ExtractJWTException` | JWT is invalid/expired, or the public key is missing. |
 | `AuthBridgeException` | Base class for all of the above (carries `getContext()`). |
+
+Every one of them implements `HttpExceptionInterface`, so Laravel renders them with the status from `getCode()` —
+a denied consent is a `400`, not a `500`. Codes outside `400`-`599` fall back to `500`. They still reach your error
+reporting (they do not extend Symfony's `HttpException`, the class Laravel silently skips); add them to your
+handler's `$dontReport` if you would rather not see them.
+
+Setting `ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN=true` sends a browser straight back through
+`auth-bridge.redirect` when the callback fails, instead of rendering the error page. It is off by default because
+a persistent cause - a session cookie that never survives the callback, wrong client credentials - turns it into an
+endless redirect loop. JSON requests always get the status response, never a redirect.
 
 `getCode()` carries the HTTP status of the failure, which is what tells a permanent problem from a passing one:
 the OAuth server's own status for a rejected request, `502` when it answered `2xx` with something that is not a

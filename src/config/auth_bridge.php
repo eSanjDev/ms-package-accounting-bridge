@@ -150,6 +150,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Redirect On Failed Login
+    |--------------------------------------------------------------------------
+    |
+    | Send the user back through the login flow when the callback fails, instead
+    | of rendering an error page. Off by default: when the cause is persistent —
+    | a session cookie that never survives the callback, wrong client
+    | credentials — this turns a visible error into an endless redirect loop.
+    |
+    */
+    'redirect_on_failed_login' => (bool) env('ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN', false),
+
+
+    /*
+    |--------------------------------------------------------------------------
     | Session Keys
     |--------------------------------------------------------------------------
     |
