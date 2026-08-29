@@ -20,7 +20,7 @@ happens when a token arrives.
 
 ## Requirements
 
-- **PHP:** 8.1 – 8.4
+- **PHP:** 8.2 – 8.4
 - **Laravel:** 10.x – 13.x
 - **OAuth Server:** any OAuth 2.0 compliant server
 - `firebase/php-jwt` (installed automatically) — used for JWT verification.

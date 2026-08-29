@@ -72,7 +72,7 @@ Most apps use the first for login. Use the second when your backend needs its ow
 
 ## 3. Requirements
 
-- PHP 8.1–8.4, Laravel 10–13.
+- PHP 8.2–8.4, Laravel 10–13.
 - An **OAuth 2.0 server** you can reach, plus a **client id/secret** issued by it.
 - For JWT verification: the server's **RS256 public key** as a file on your server.
 - `firebase/php-jwt` is pulled in automatically.
