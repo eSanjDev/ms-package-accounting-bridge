@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Esanj\AuthBridge\Events;
 
 use Esanj\AuthBridge\Exceptions\AuthBridgeException;
-use Illuminate\Foundation\Events\Dispatchable;
+use Esanj\AuthBridge\Events\Concerns\Dispatchable;
 
 class TokenExchangeFailed
 {
