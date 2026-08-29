@@ -64,6 +64,14 @@ class AuthBridge extends Facade
     }
 
     /**
+     * Revoke the token on the OAuth server, then clear it from session.
+     */
+    public static function revokeToken(): void
+    {
+        static::getFacadeRoot()->revokeToken();
+    }
+
+    /**
      * Get the "Bearer xxx" authorization header (auto-refreshed).
      */
     public static function getAuthorizationHeader(): ?string

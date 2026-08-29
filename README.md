@@ -78,6 +78,9 @@ ACCOUNTING_BRIDGE_EXPECTED_ISSUER=            # e.g. https://accounting.example.
 # Send the user back through login when the callback fails, instead of an error page (optional)
 ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN=false
 
+# RFC 7009 revocation endpoint used by revokeToken(); empty means no server-side revocation
+ACCOUNTING_BRIDGE_REVOKE_PATH=
+
 # Silent refresh (optional)
 ACCOUNTING_BRIDGE_REFRESH_PATH=/oauth/token   # Passport uses the token endpoint with grant_type=refresh_token
 ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds before the access token expires
@@ -99,6 +102,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `expected_issuer` | Required `iss` value; empty means the claim is not checked. |
 | `redirect_on_failed_login` | Retry the login flow on a failed callback instead of rendering an error (default `false`). |
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
+| `revoke_token_path` | RFC 7009 revocation endpoint for `revokeToken()`; empty disables server-side revocation. |
 | `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
 
@@ -284,7 +288,27 @@ AuthBridge::getAccessToken();           // string|null
 AuthBridge::hasToken();                 // bool
 AuthBridge::getAuthorizationHeader();   // "Bearer xxx"|null
 AuthBridge::clearToken();               // forget the session token
+AuthBridge::revokeToken();              // revoke it server-side, then forget it
 ```
+
+### Logging out
+
+`clearToken()` only drops the token from the session. The refresh token stays valid on the OAuth server for its
+full lifetime, so anything that has a copy of it — a log line, a session backup, a shared browser — keeps working
+after the user believes they have logged out. `revokeToken()` closes that: it posts the token to the server's
+RFC 7009 revocation endpoint and then clears the session.
+
+That endpoint is **off until you configure it**, because Passport ships no revocation route — pointing at a path
+that does not exist would make every logout look successful while revoking nothing. Add the route on your OAuth
+server, then set:
+
+```env
+ACCOUNTING_BRIDGE_REVOKE_PATH=/oauth/token/revoke
+```
+
+Revocation is best effort: if the server is unreachable or rejects the request it is logged as a warning and the
+local session is cleared anyway, so a logout never fails on it. Until the endpoint exists, treat server-side
+revocation as a known limitation — a logged-out refresh token remains usable until it expires.
 
 ## Error handling
 

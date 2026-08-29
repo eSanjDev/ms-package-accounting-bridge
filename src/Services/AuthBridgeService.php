@@ -19,8 +19,10 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use Throwable;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
 {
@@ -32,6 +34,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const REFRESH_LOCK_TTL_SECONDS = 35;
     private const REFRESH_LOCK_WAIT_SECONDS = 5;
     private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
+    private const REVOKE_TIMEOUT_SECONDS = 5;
 
     private string $baseUrl;
     private string $clientId;
@@ -39,6 +42,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private string $defaultRedirectUrl;
     private string $prompt;
     private string $refreshTokenPath;
+    private string $revokeTokenPath;
     private int $refreshBufferSeconds;
 
     public function __construct(
@@ -57,6 +61,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->defaultRedirectUrl = $config['redirect_url'] ?? '';
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
+        $this->revokeTokenPath = (string) ($config['revoke_token_path'] ?? '');
         $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
         $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
     }
@@ -286,6 +291,47 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     {
         $this->store->forget();
         Cache::forget($this->sharedTokenKey());
+    }
+
+    public function revokeToken(): void
+    {
+        $token = $this->store->get();
+
+        if ($token !== null) {
+            $this->revokeOnServer($token);
+        }
+
+        $this->clearToken();
+    }
+
+    private function revokeOnServer(TokenData $token): void
+    {
+        if ($this->revokeTokenPath === '') {
+            return;
+        }
+
+        try {
+            $response = Http::asForm()
+                ->timeout(self::REVOKE_TIMEOUT_SECONDS)
+                ->post($this->getBaseUrl() . $this->revokeTokenPath, [
+                    'client_id' => $this->getClientId(),
+                    'client_secret' => $this->getClientSecret(),
+                    'token' => $token->refreshToken ?? $token->accessToken,
+                    'token_type_hint' => $token->hasRefreshToken() ? 'refresh_token' : 'access_token',
+                ]);
+
+            if ($response->failed()) {
+                Log::warning('Auth bridge: the OAuth server rejected the token revocation', [
+                    'status' => $response->status(),
+                    'path' => $this->revokeTokenPath,
+                ]);
+            }
+        } catch (Throwable $e) {
+            Log::warning('Auth bridge: token revocation could not be delivered', [
+                'error' => $e->getMessage(),
+                'path' => $this->revokeTokenPath,
+            ]);
+        }
     }
 
     public function getClientId(): string

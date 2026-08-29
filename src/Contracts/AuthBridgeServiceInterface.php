@@ -24,4 +24,6 @@ interface AuthBridgeServiceInterface
     public function storeToken(TokenData $tokenData): void;
     
     public function clearToken(): void;
+
+    public function revokeToken(): void;
 }

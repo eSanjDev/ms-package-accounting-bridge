@@ -214,8 +214,15 @@ use Esanj\AuthBridge\Facades\AuthBridge;
 AuthBridge::hasToken();                // is there a usable token? (refreshes if needed)
 AuthBridge::getAccessToken();          // a still‑valid access token string, or null
 AuthBridge::getAuthorizationHeader();  // "Bearer xxxx" — ready for an HTTP header
-AuthBridge::clearToken();              // remove it (e.g. on logout)
+AuthBridge::clearToken();              // remove it locally
+AuthBridge::revokeToken();             // revoke it on the server, then remove it (use this on logout)
 ```
+
+> ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
+> server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
+> revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such
+> route and calling a missing one would fake a successful revocation. Failures are logged, never thrown: a logout
+> always clears the local session.
 
 Calling another API with it:
 
@@ -440,6 +447,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `expected_issuer` | `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` | *(empty)* | Required `iss`; empty skips the check. |
 | `redirect_on_failed_login` | `ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN` | `false` | Retry login on a failed callback instead of showing an error. |
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
+| `revoke_token_path` | `ACCOUNTING_BRIDGE_REVOKE_PATH` | *(empty)* | RFC 7009 revocation endpoint; empty disables it. |
 | `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |
 | `session_token_key` | — | `auth_bridge` | Session key for the stored token. |
@@ -464,7 +472,7 @@ so a wrong `client_secret` stays visible in your logs while the user gets a `400
 **`AuthBridge` facade:**
 `buildAuthorizationUrl()`, `exchangeAuthorizationCodeForAccessToken($code)`, `refreshAccessToken($refreshToken)`,
 `getClientId()`, `getBaseUrl()`, plus auto‑refreshing session helpers `getToken()`, `getAccessToken()`,
-`hasToken()`, `getAuthorizationHeader()`, `clearToken()`.
+`hasToken()`, `getAuthorizationHeader()`, `clearToken()`, `revokeToken()`.
 
 **`TokenData` DTO:** `accessToken`, `tokenType`, `expiresIn`, `refreshToken`, `scope`, `expiresAt`,
 `isExpired()`, `isExpiring($bufferSeconds)`, `hasRefreshToken()`, `getAuthorizationHeader()`.

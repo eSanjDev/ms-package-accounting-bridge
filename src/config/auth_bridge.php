@@ -42,6 +42,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Revoke Token Endpoint
+    |--------------------------------------------------------------------------
+    |
+    | Path (relative to base_url) that revokes a token server-side on logout,
+    | per RFC 7009. Left empty by default because Passport ships no such route:
+    | pointing this at an endpoint that does not exist would make every logout
+    | look like it revoked something when it did not.
+    |
+    */
+    'revoke_token_path' => env('ACCOUNTING_BRIDGE_REVOKE_PATH'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Refresh Buffer (seconds)
     |--------------------------------------------------------------------------
     |
