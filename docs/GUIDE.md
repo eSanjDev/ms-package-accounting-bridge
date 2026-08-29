@@ -224,6 +224,13 @@ turned down is not retried by every following call. The memo is dropped as soon 
 buffer, and `storeToken()` / `clearToken()` update it. Write to the session yourself (`session()->forget(...)`)
 and the memo will not know about it: go through the facade instead.
 
+**How the token is stored.** Access token, refresh token and the absolute `expires_at` go into the session under
+`session_token_key`, in plain text — the same protection Laravel gives every other session value. With
+`SESSION_DRIVER=file` or `redis` that means a month-long refresh token sits unencrypted on disk or in Redis. For
+most deployments that is an acceptable, deliberate trade-off; if your Redis snapshots are shipped somewhere less
+trusted than your application servers, wrap the value in `Crypt::encryptString()` before it is stored. The session
+id itself is regenerated at the callback, so a fixated id never reaches the stored token.
+
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
 > revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such

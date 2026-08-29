@@ -137,8 +137,12 @@ The package builds the authorization URL, stores a random `state` in the session
 `AuthorizationRedirecting`, and redirects to the OAuth server.
 
 **Step 2 — the callback is handled for you.** On return the package validates `state` (in production), exchanges
-the `code` for a token, stores the token in the session under `auth_bridge`, fires `TokenReceived`, and redirects
-to `config('esanj.auth_bridge.success_redirect')`.
+the `code` for a token, regenerates the session id, stores the token in the session under `auth_bridge`, fires
+`TokenReceived`, and redirects to `config('esanj.auth_bridge.success_redirect')`.
+
+The regeneration happens before the token is written, so a session id planted in the browser before the login is
+never the one holding the token. Session data carries over, and the later `session()->migrate(true)` that
+`Auth::login()` performs is harmless.
 
 > ℹ️ `success_redirect` and the callback URL are taken from **config/env**. (Passing them as query parameters to
 > the route is **not** currently supported — see [Notes](#notes--limitations).)

@@ -46,6 +46,8 @@ class AuthBridgeController extends Controller
 
         $tokenData = $this->authBridgeService->exchangeAuthorizationCodeForAccessToken($code);
 
+        $request->session()->regenerate(true);
+
         $this->authBridgeService->storeToken($tokenData);
 
         return redirect()->to(config('esanj.auth_bridge.success_redirect', '/'));
