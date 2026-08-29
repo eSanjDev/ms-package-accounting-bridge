@@ -170,8 +170,15 @@ together with the access token's absolute `expires_at`. When the access token is
 `refresh_buffer_seconds` of expiring — the package silently exchanges the refresh token for a new access token
 (`POST {refresh_token_path}` with `grant_type=refresh_token`) and rewrites the session. The user never notices.
 
-If the refresh token is itself invalid/expired, the stored token is cleared and the accessors return `null`, so you
-can send the user back through `auth-bridge.redirect` to log in again.
+If the refresh token is itself invalid/expired **and** the access token has also expired, the stored token is
+cleared and the accessors return `null`, so you can send the user back through `auth-bridge.redirect` to log in
+again. A `5xx` or a connection failure never clears the session — a brief outage of the OAuth server must not log
+everyone out.
+
+Concurrent requests are serialised through a cache lock keyed by session id, and the refreshing request publishes
+its result to the cache so the others adopt it instead of replaying an already-rotated refresh token. **This needs
+a cache store shared across your web workers** (`redis`, `memcached`, `database`, or `file` on a single host); with
+`CACHE_STORE=array` each process is isolated and the protection is lost.
 
 Refresh happens automatically whenever you read the token through the facade
 (`getValidToken()`, `getAccessToken()`, `getAuthorizationHeader()`, `hasToken()`). To refresh **transparently on

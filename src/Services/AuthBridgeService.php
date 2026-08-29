@@ -12,7 +12,11 @@ use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Esanj\AuthBridge\Support\TokenSessionStore;
+use Illuminate\Contracts\Cache\Lock;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
@@ -23,6 +27,10 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const OAUTH_AUTHORIZE_PATH = '/oauth/authorize';
     private const DEFAULT_REFRESH_BUFFER_SECONDS = 60;
     private const MAX_REFRESH_BUFFER_SECONDS = 300;
+    private const REFRESH_LOCK_PREFIX = 'auth_bridge:refresh-lock:';
+    private const REFRESH_LOCK_TTL_SECONDS = 35;
+    private const REFRESH_LOCK_WAIT_SECONDS = 5;
+    private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
 
     private string $baseUrl;
     private string $clientId;
@@ -155,21 +163,93 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             return $token->isExpired() ? null : $token;
         }
 
+        return $this->refreshUnderLock($token);
+    }
+
+    private function refreshUnderLock(TokenData $token): ?TokenData
+    {
+        $lock = $this->refreshLock();
+
+        if ($lock === null) {
+            return $this->performRefresh($token);
+        }
+
+        try {
+            $lock->block(self::REFRESH_LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            return $this->adoptSharedToken() ?? ($token->isExpired() ? null : $token);
+        }
+
+        try {
+            return $this->adoptSharedToken() ?? $this->performRefresh($token);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function performRefresh(TokenData $token): ?TokenData
+    {
         try {
             $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope);
-        } catch (TokenExchangeException) {
-            if (!$token->isExpired()) {
-                return $token;
-            }
-
-            $this->store->forget();
-
-            return null;
+        } catch (TokenExchangeException $e) {
+            return $this->handleFailedRefresh($token, $e);
         }
 
         $this->store->put($refreshed);
+        $this->shareToken($refreshed);
 
         return $refreshed;
+    }
+
+    private function handleFailedRefresh(TokenData $token, TokenExchangeException $e): ?TokenData
+    {
+        if (!$token->isExpired()) {
+            return $token;
+        }
+
+        if ($e->getCode() >= 400 && $e->getCode() < 500) {
+            $this->clearToken();
+        }
+
+        return null;
+    }
+
+    private function adoptSharedToken(): ?TokenData
+    {
+        $data = Cache::get($this->sharedTokenKey());
+
+        if (!is_array($data) || empty($data['access_token'])) {
+            return null;
+        }
+
+        $shared = TokenData::fromStorage($data);
+
+        if ($shared->isExpiring($this->refreshBufferSeconds)) {
+            return null;
+        }
+
+        $this->store->put($shared);
+
+        return $shared;
+    }
+
+    private function shareToken(TokenData $token): void
+    {
+        Cache::put($this->sharedTokenKey(), $token->toArray(), max(1, $token->expiresIn));
+    }
+
+    private function sharedTokenKey(): string
+    {
+        return self::SHARED_TOKEN_PREFIX . Session::getId();
+    }
+
+    private function refreshLock(): ?Lock
+    {
+        if (!Cache::getStore() instanceof LockProvider) {
+            return null;
+        }
+
+        return Cache::lock(self::REFRESH_LOCK_PREFIX . Session::getId(), self::REFRESH_LOCK_TTL_SECONDS);
     }
 
     public function getValidAccessToken(): ?string
@@ -185,11 +265,13 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function storeToken(TokenData $tokenData): void
     {
         $this->store->put($tokenData);
+        $this->shareToken($tokenData);
     }
 
     public function clearToken(): void
     {
         $this->store->forget();
+        Cache::forget($this->sharedTokenKey());
     }
 
     public function getClientId(): string

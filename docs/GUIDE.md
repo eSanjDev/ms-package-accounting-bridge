@@ -244,8 +244,16 @@ the longer‑lived **refresh token** to fetch a new access token behind the scen
 **How it works:** when you read the token through the facade, if the access token is expired — or within
 `refresh_buffer_seconds` (default 60) of expiring — the package calls the OAuth server with
 `grant_type=refresh_token`, stores the new access + refresh token in the session, and returns the fresh one. If the
-refresh token itself is no longer valid, the session token is cleared and the helpers return `null`, so you can send
-the user back to `route('auth-bridge.redirect')`.
+refresh token itself is no longer valid *and* the access token has expired too, the session token is cleared and the
+helpers return `null`, so you can send the user back to `route('auth-bridge.redirect')`. A `5xx` or a connection
+failure leaves the session untouched so the next request can retry.
+
+> ⚠️ **A shared cache store is required.** Servers that rotate refresh tokens (Passport does, via
+> `Passport::$revokeRefreshTokenAfterUse`) invalidate the old one the moment it is used, so parallel requests that
+> each replay the same refresh token would knock each other out. The package takes a cache lock keyed by session id
+> and publishes the refreshed token to the cache, which is the only way the losing requests can see it — their
+> session snapshot was loaded before the winner wrote to it. Use `redis`, `memcached`, `database`, or `file` on a
+> single host; `array` is per-process and gives no protection.
 
 > ⚠️ **Passport note.** Refresh uses the standard token endpoint `POST /oauth/token` with
 > `grant_type=refresh_token` — **not** a separate `/oauth/token/refresh` route (that path is CSRF‑protected `web`
