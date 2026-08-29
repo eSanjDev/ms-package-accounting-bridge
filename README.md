@@ -349,6 +349,11 @@ try {
 }
 ```
 
+`getContext()` is safe to log. For a failed token request it carries the response status, its content type and
+only the standard OAuth error fields (`error`, `error_description`, `error_uri`, `hint`) — never the response body.
+That matters because logs are usually readable by more people than tokens are, get shipped to third parties, and
+are kept for a long time. If you build your own context, keep it to the same shape.
+
 ## Notes & limitations
 
 - **State (CSRF) validation runs only in production** (`app()->isProduction()`). In local/testing environments the

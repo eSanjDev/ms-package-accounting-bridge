@@ -20,6 +20,7 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
 use Throwable;
@@ -104,9 +105,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         if ($response->failed()) {
             $error = $response->json('error_description', $response->json('error', 'Unknown error'));
-            $exception = TokenExchangeException::failed($error, $response->status(), [
-                'response' => $response->json(),
-            ]);
+            $exception = TokenExchangeException::failed($error, $response->status(), $this->safeContext($response));
             TokenExchangeFailed::dispatch($exception);
             throw $exception;
         }
@@ -137,9 +136,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         if ($response->failed()) {
             $error = $response->json('error_description', $response->json('error', 'Unknown error'));
-            $exception = TokenExchangeException::failed($error, $response->status(), [
-                'response' => $response->json(),
-            ]);
+            $exception = TokenExchangeException::failed($error, $response->status(), $this->safeContext($response));
             TokenExchangeFailed::dispatch($exception, 'refresh_token');
             throw $exception;
         }
@@ -147,15 +144,31 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         return $this->tokenFromResponse($response, 'refresh_token');
     }
 
+    private function safeContext(Response $response): array
+    {
+        $context = [
+            'status' => $response->status(),
+            'content_type' => $response->header('Content-Type'),
+        ];
+
+        $body = $response->json();
+
+        if (is_array($body)) {
+            $context['error'] = array_filter(
+                Arr::only($body, ['error', 'error_description', 'error_uri', 'hint']),
+                'is_scalar'
+            );
+        }
+
+        return $context;
+    }
+
     private function tokenFromResponse(Response $response, string $grantType): TokenData
     {
         $payload = $response->json();
 
         if (!is_array($payload) || !isset($payload['access_token']) || !is_string($payload['access_token'])) {
-            $exception = TokenExchangeException::malformedResponse([
-                'status' => $response->status(),
-                'body' => Str::limit($response->body(), 500),
-            ]);
+            $exception = TokenExchangeException::malformedResponse($this->safeContext($response));
             TokenExchangeFailed::dispatch($exception, $grantType);
             throw $exception;
         }

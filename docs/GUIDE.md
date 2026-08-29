@@ -459,7 +459,8 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 **Events:** `TokenReceived` (`tokenData`, `grantType`), `TokenExchangeFailed` (`exception`, `grantType`),
 `AuthorizationRedirecting` (`request`, `authorizationUrl`).
 
-**Exceptions** (all extend `AuthBridgeException`, which has `getContext()`):
+**Exceptions** (all extend `AuthBridgeException`, which has `getContext()` — status, content type and the
+standard OAuth error fields only, never the raw response body, so it is safe to log):
 `InvalidStateException`, `TokenExchangeException`, `TokenRequestException`, `ExtractJWTException`.
 `getCode()` is the HTTP status of the failure — the server's own status, `502` for a `2xx` that carried no usable
 `access_token`, `503` for a connection that never landed. Anything outside `4xx` is treated as transient and never
