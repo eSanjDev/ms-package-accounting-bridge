@@ -23,4 +23,13 @@ class TokenRequestException extends AuthBridgeException
             context: ['client_id' => $clientId]
         );
     }
+
+    public static function malformedResponse(string $clientId, int $responseStatus): self
+    {
+        return new self(
+            message: 'OAuth server returned a malformed token response (no access_token)',
+            code: 502,
+            context: ['client_id' => $clientId, 'response_status' => $responseStatus]
+        );
+    }
 }

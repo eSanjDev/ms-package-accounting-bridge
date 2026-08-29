@@ -444,6 +444,9 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 
 **Exceptions** (all extend `AuthBridgeException`, which has `getContext()`):
 `InvalidStateException`, `TokenExchangeException`, `TokenRequestException`, `ExtractJWTException`.
+`getCode()` is the HTTP status of the failure — the server's own status, `502` for a `2xx` that carried no usable
+`access_token`, `503` for a connection that never landed. Anything outside `4xx` is treated as transient and never
+clears the user's session.
 
 **`AuthBridge` facade:**
 `buildAuthorizationUrl()`, `exchangeAuthorizationCodeForAccessToken($code)`, `refreshAccessToken($refreshToken)`,
@@ -474,7 +477,9 @@ Run `composer update` so `firebase/php-jwt` (a dependency of this package) is in
 
 **`TokenExchangeException` right after the callback.**
 Wrong `client_id`/`client_secret`/`base_url`, or the `redirect_uri` didn't match. Check the exception's
-`getContext()` and your OAuth server logs.
+`getContext()` and your OAuth server logs. The same exception (code `400`) is how a user pressing **Deny** on the
+consent screen arrives — the server sends `?error=access_denied` with no `code`. Handle it as a cancelled login
+rather than an error.
 
 **Config changes seem ignored.**
 `php artisan config:clear` (and re‑cache with `config:cache` in production).

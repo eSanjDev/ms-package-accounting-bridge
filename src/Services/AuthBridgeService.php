@@ -16,6 +16,7 @@ use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
@@ -105,10 +106,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             throw $exception;
         }
 
-        $tokenData = TokenData::fromArray($response->json());
-        TokenReceived::dispatch($tokenData, 'authorization_code');
-
-        return $tokenData;
+        return $this->tokenFromResponse($response, 'authorization_code');
     }
 
     public function refreshAccessToken(string $refreshToken, ?string $scope = null): TokenData
@@ -141,8 +139,24 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             throw $exception;
         }
 
-        $tokenData = TokenData::fromArray($response->json());
-        TokenReceived::dispatch($tokenData, 'refresh_token');
+        return $this->tokenFromResponse($response, 'refresh_token');
+    }
+
+    private function tokenFromResponse(Response $response, string $grantType): TokenData
+    {
+        $payload = $response->json();
+
+        if (!is_array($payload) || !isset($payload['access_token']) || !is_string($payload['access_token'])) {
+            $exception = TokenExchangeException::malformedResponse([
+                'status' => $response->status(),
+                'body' => Str::limit($response->body(), 500),
+            ]);
+            TokenExchangeFailed::dispatch($exception, $grantType);
+            throw $exception;
+        }
+
+        $tokenData = TokenData::fromArray($payload);
+        TokenReceived::dispatch($tokenData, $grantType);
 
         return $tokenData;
     }

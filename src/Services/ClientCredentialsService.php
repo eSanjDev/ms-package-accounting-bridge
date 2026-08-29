@@ -100,7 +100,16 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
             throw $exception;
         }
 
-        $tokenData = TokenData::fromArray($response->json());
+        $payload = $response->json();
+
+        if (!is_array($payload) || !isset($payload['access_token']) || !is_string($payload['access_token'])) {
+            $this->logError($clientId, $response->status(), 'Malformed token response (no access_token)');
+            $exception = TokenRequestException::malformedResponse($clientId, $response->status());
+            TokenExchangeFailed::dispatch($exception, 'client_credentials');
+            throw $exception;
+        }
+
+        $tokenData = TokenData::fromArray($payload);
         TokenReceived::dispatch($tokenData, 'client_credentials');
 
         return $tokenData;

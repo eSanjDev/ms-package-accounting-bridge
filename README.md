@@ -280,6 +280,14 @@ AuthBridge::clearToken();               // forget the session token
 | `ExtractJWTException` | JWT is invalid/expired, or the public key is missing. |
 | `AuthBridgeException` | Base class for all of the above (carries `getContext()`). |
 
+`getCode()` carries the HTTP status of the failure, which is what tells a permanent problem from a passing one:
+the OAuth server's own status for a rejected request, `502` when it answered `2xx` with something that is not a
+token response (a maintenance page, a proxy error), and `503` when the connection never got through.
+
+The user pressing **Deny** on the consent screen comes back to the callback as `?error=access_denied` with no
+`code`, and surfaces as a `TokenExchangeException` carrying the server's `error_description` — not a `500`. Catch
+it in your exception handler and send the user somewhere sensible.
+
 ```php
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 

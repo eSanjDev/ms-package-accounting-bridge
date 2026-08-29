@@ -22,4 +22,13 @@ class TokenExchangeException extends AuthBridgeException
             code: 503
         );
     }
+
+    public static function malformedResponse(array $context = []): self
+    {
+        return new self(
+            message: 'OAuth server returned a malformed token response (no access_token)',
+            code: 502,
+            context: $context
+        );
+    }
 }
