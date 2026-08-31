@@ -23,7 +23,7 @@ final readonly class TokenData implements JsonSerializable
     ) {
         $this->expiresAt = $expiresAt ?? (new DateTimeImmutable())->modify("+{$expiresIn} seconds");
     }
-    
+
     public static function fromArray(?array $data): self
     {
         if (!is_array($data) || !isset($data['access_token']) || !is_string($data['access_token'])) {
@@ -38,17 +38,10 @@ final readonly class TokenData implements JsonSerializable
             scope: is_scalar($data['scope'] ?? null) ? (string) $data['scope'] : null,
         );
     }
-    
+
     public static function fromStorage(array $data): self
     {
-        $expiresAt = null;
-        if (!empty($data['expires_at'])) {
-            try {
-                $expiresAt = new DateTimeImmutable($data['expires_at']);
-            } catch (Exception) {
-                $expiresAt = null;
-            }
-        }
+        $expiresAt = self::parseStoredExpiry($data['expires_at'] ?? null);
 
         return new self(
             accessToken: $data['access_token'],
@@ -58,6 +51,19 @@ final readonly class TokenData implements JsonSerializable
             scope: $data['scope'] ?? null,
             expiresAt: $expiresAt,
         );
+    }
+
+    private static function parseStoredExpiry(mixed $value): DateTimeImmutable
+    {
+        if (is_string($value) && trim($value) !== '') {
+            try {
+                return new DateTimeImmutable($value);
+            } catch (Exception) {
+                // fall through
+            }
+        }
+
+        return (new DateTimeImmutable())->modify('-1 second');
     }
 
     public function toArray(): array
