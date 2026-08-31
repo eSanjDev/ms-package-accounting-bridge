@@ -20,12 +20,13 @@ use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Throwable;
 
@@ -45,6 +46,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
     private const TOKEN_TIMEOUT_SECONDS = 10;
     private const GRANT_REJECTED_STATUSES = [400, 401];
+    private const MAX_PENDING_STATES = 5;
 
     private string $baseUrl;
     private string $clientId;
@@ -61,40 +63,41 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     public function __construct(
         private readonly TokenSessionStore $store = new TokenSessionStore()
-    ) {
+    )
+    {
         $this->loadConfig();
     }
 
     private function loadConfig(): void
     {
-        $config = (array) (config('esanj.auth_bridge') ?? []);
+        $config = (array)(config('esanj.auth_bridge') ?? []);
 
         $this->baseUrl = $this->resolveBaseUrl();
-        $this->clientId = (string) ($config['client_id'] ?? '');
-        $this->clientSecret = (string) ($config['client_secret'] ?? '');
+        $this->clientId = (string)($config['client_id'] ?? '');
+        $this->clientSecret = (string)($config['client_secret'] ?? '');
 
         if ($this->clientId === '' || $this->clientSecret === '') {
             throw ConfigurationException::missingCredentials();
         }
         $this->defaultRedirectUrl = $this->resolveRedirectUrl($config);
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
-        $this->scope = (string) ($config['scope'] ?? '');
+        $this->scope = (string)($config['scope'] ?? '');
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
-        $this->revokeTokenPath = (string) ($config['revoke_token_path'] ?? '');
+        $this->revokeTokenPath = (string)($config['revoke_token_path'] ?? '');
         $this->logChannel = $config['log_channel'] ?? null;
-        $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
+        $buffer = (int)($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
         $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
     }
 
     private function resolveRedirectUrl(array $config): string
     {
-        $redirectUrl = trim((string) ($config['redirect_url'] ?? ''));
+        $redirectUrl = trim((string)($config['redirect_url'] ?? ''));
 
         if (!str_starts_with($redirectUrl, '/') || str_starts_with($redirectUrl, '//')) {
             return $redirectUrl;
         }
 
-        return rtrim((string) config('app.url', ''), '/') . $redirectUrl;
+        return rtrim((string)config('app.url', ''), '/') . $redirectUrl;
     }
 
     public function buildAuthorizationUrl(): string
@@ -111,11 +114,30 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         $url = $this->getBaseUrl() . self::OAUTH_AUTHORIZE_PATH . "?" . $request->toQueryString();
 
-        Session::put(config('esanj.auth_bridge.session_state_key'), $state);
+        $this->rememberState($state);
 
         AuthorizationRedirecting::dispatch($request, $url);
 
         return $url;
+    }
+
+    private function rememberState(string $state): void
+    {
+        $key = config('esanj.auth_bridge.session_state_key');
+
+        $states = self::pendingStates(Session::get($key));
+        $states[] = $state;
+
+        Session::put($key, array_slice($states, -self::MAX_PENDING_STATES));
+    }
+
+    public static function pendingStates(mixed $stored): array
+    {
+        if (is_string($stored)) {
+            return $stored === '' ? [] : [$stored];
+        }
+
+        return is_array($stored) ? array_values(array_filter($stored, 'is_string')) : [];
     }
 
     public function exchangeAuthorizationCodeForAccessToken(string $code): TokenData
@@ -312,11 +334,17 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     {
         $data = Cache::get($this->sharedTokenKey());
 
-        if (!is_array($data) || empty($data['access_token'])) {
+        if (!is_array($data)) {
             return null;
         }
 
-        $shared = TokenData::fromStorage($data);
+        try {
+            $shared = TokenData::fromStorage($data);
+        } catch (InvalidArgumentException) {
+            Cache::forget($this->sharedTokenKey());
+
+            return null;
+        }
 
         if ($shared->isExpiring($this->refreshBufferSeconds)) {
             return null;

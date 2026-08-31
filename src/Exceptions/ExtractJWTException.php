@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Esanj\AuthBridge\Exceptions;
 
 class ExtractJWTException extends AuthBridgeException

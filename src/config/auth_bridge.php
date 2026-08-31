@@ -215,15 +215,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Session Keys
-    |--------------------------------------------------------------------------
-    |
-    | These keys are used to store the OAuth state and access token in the
-    | session during the authentication bridge process.
-    |
-    */
-    /*
-    |--------------------------------------------------------------------------
     | Log Channel
     |--------------------------------------------------------------------------
     |
@@ -234,6 +225,15 @@ return [
     */
     'log_channel' => env('ACCOUNTING_BRIDGE_LOG_CHANNEL'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Session Keys
+    |--------------------------------------------------------------------------
+    |
+    | These keys are used to store the OAuth state and access token in the
+    | session during the authentication bridge process.
+    |
+    */
     'session_state_key' => 'auth_bridge_state',
     'session_token_key' => 'auth_bridge',
 ];

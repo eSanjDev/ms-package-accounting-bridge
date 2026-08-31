@@ -6,6 +6,7 @@ namespace Esanj\AuthBridge\Support;
 
 use Esanj\AuthBridge\DTOs\TokenData;
 use Illuminate\Support\Facades\Session;
+use InvalidArgumentException;
 
 class TokenSessionStore
 {
@@ -23,11 +24,17 @@ class TokenSessionStore
     {
         $data = Session::get($this->key());
 
-        if (!is_array($data) || empty($data['access_token'])) {
+        if (!is_array($data)) {
             return null;
         }
 
-        return TokenData::fromStorage($data);
+        try {
+            return TokenData::fromStorage($data);
+        } catch (InvalidArgumentException) {
+            $this->forget();
+
+            return null;
+        }
     }
 
     public function raw(): ?array

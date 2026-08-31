@@ -7,6 +7,7 @@ namespace Esanj\AuthBridge\Http\Controllers;
 use Esanj\AuthBridge\Contracts\AuthBridgeServiceInterface;
 use Esanj\AuthBridge\Exceptions\InvalidStateException;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
+use Esanj\AuthBridge\Services\AuthBridgeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -76,15 +77,26 @@ class AuthBridgeController extends Controller
             return;
         }
 
-        $storedState = $request->session()->pull(config('esanj.auth_bridge.session_state_key'));
-        $requestState = $request->input('state');
+        $key = config('esanj.auth_bridge.session_state_key');
+        $states = AuthBridgeService::pendingStates($request->session()->get($key));
 
-        if (empty($storedState)) {
+        if ($states === []) {
             throw InvalidStateException::missing();
         }
 
-        if ($storedState !== $requestState) {
+        $requestState = $request->input('state');
+        $matched = is_string($requestState) ? array_search($requestState, $states, true) : false;
+
+        if ($matched === false) {
+            $request->session()->forget($key);
+
             throw InvalidStateException::mismatch();
         }
+
+        unset($states[$matched]);
+
+        $states === []
+            ? $request->session()->forget($key)
+            : $request->session()->put($key, array_values($states));
     }
 }

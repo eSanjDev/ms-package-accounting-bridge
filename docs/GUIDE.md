@@ -231,6 +231,15 @@ most deployments that is an acceptable, deliberate trade-off; if your Redis snap
 trusted than your application servers, wrap the value in `Crypt::encryptString()` before it is stored. The session
 id itself is regenerated at the callback, so a fixated id never reaches the stored token.
 
+**A second copy lives in the cache.** Every time a token is stored or refreshed the same array — refresh token
+included — is also written to the cache under `auth_bridge:shared-token:{session id}` for the access token's
+lifetime, so a concurrent request that lost the refresh lock adopts the new token instead of replaying an
+already-rotated refresh token. That copy *has* to carry the refresh token: against a server that rotates them,
+handing over only the access token would leave the losing request holding one the server has just invalidated.
+So hardening the session alone is not enough — if you wrap the session value in `Crypt::encryptString()`, do the
+same here, and note that `CACHE_STORE=file` puts it on disk just as `SESSION_DRIVER=file` does. Both
+`clearToken()` and `revokeToken()` forget this copy along with the session one.
+
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
 > revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such

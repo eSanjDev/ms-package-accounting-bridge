@@ -13,7 +13,6 @@ final readonly class AuthorizationRequest
         public string  $responseType = 'code',
         public string  $scope = '',
         public string  $prompt = 'consent',
-        public ?string $successRedirect = null,
     ) {}
 
     public function toQueryString(): string

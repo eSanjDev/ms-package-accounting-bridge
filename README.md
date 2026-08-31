@@ -206,7 +206,9 @@ everyone out.
 Concurrent requests are serialised through a cache lock keyed by session id, and the refreshing request publishes
 its result to the cache so the others adopt it instead of replaying an already-rotated refresh token. **This needs
 a cache store shared across your web workers** (`redis`, `memcached`, `database`, or `file` on a single host); with
-`CACHE_STORE=array` each process is isolated and the protection is lost.
+`CACHE_STORE=array` each process is isolated and the protection is lost. That published copy contains the refresh
+token too — it has to, or the adopting request would keep a rotated-away one — so it is a second unencrypted copy
+alongside the session's, cleared by `clearToken()`/`revokeToken()`. See the storage notes in `docs/GUIDE.md`.
 
 Refresh happens automatically whenever you read the token through the facade
 (`getValidToken()`, `getAccessToken()`, `getAuthorizationHeader()`, `hasToken()`). To refresh **transparently on

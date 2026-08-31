@@ -42,15 +42,17 @@ final readonly class TokenData implements JsonSerializable
 
     public static function fromStorage(array $data): self
     {
-        $expiresAt = self::parseStoredExpiry($data['expires_at'] ?? null);
+        if (!isset($data['access_token']) || !is_string($data['access_token']) || $data['access_token'] === '') {
+            throw new InvalidArgumentException('Stored token is missing a usable access_token.');
+        }
 
         return new self(
             accessToken: $data['access_token'],
-            tokenType: $data['token_type'] ?? 'Bearer',
-            expiresIn: (int) ($data['expires_in'] ?? 3600),
-            refreshToken: $data['refresh_token'] ?? null,
-            scope: $data['scope'] ?? null,
-            expiresAt: $expiresAt,
+            tokenType: is_string($data['token_type'] ?? null) ? $data['token_type'] : 'Bearer',
+            expiresIn: is_numeric($data['expires_in'] ?? null) ? (int) $data['expires_in'] : 3600,
+            refreshToken: is_scalar($data['refresh_token'] ?? null) ? (string) $data['refresh_token'] : null,
+            scope: is_scalar($data['scope'] ?? null) ? (string) $data['scope'] : null,
+            expiresAt: self::parseStoredExpiry($data['expires_at'] ?? null),
         );
     }
 
