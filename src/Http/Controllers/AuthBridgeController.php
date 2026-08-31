@@ -19,13 +19,6 @@ class AuthBridgeController extends Controller
     {
     }
 
-    /**
-     * Redirect to OAuth authorization server.
-     *
-     * Query Parameters:
-     * - callback_url: Custom callback URL (optional, overrides config)
-     * - success_redirect: URL to redirect after successful authentication (optional)
-     */
     public function redirect(): RedirectResponse
     {
         $authorizationUrl = $this->authBridgeService->buildAuthorizationUrl();
@@ -33,11 +26,6 @@ class AuthBridgeController extends Controller
         return redirect($authorizationUrl);
     }
 
-    /**
-     * Handle OAuth callback from authorization server.
-     * @throws InvalidStateException
-     * @throws TokenExchangeException
-     */
     public function callback(Request $request): RedirectResponse
     {
         $this->validateState($request);
@@ -53,13 +41,6 @@ class AuthBridgeController extends Controller
         return redirect()->to(config('esanj.auth_bridge.success_redirect', '/'));
     }
 
-
-    /**
-     * The server sends back `error`/`error_description` instead of `code` when the
-     * user denies consent or the request is rejected.
-     *
-     * @throws TokenExchangeException
-     */
     private function resolveCode(Request $request): string
     {
         $code = $request->input('code');
@@ -75,10 +56,6 @@ class AuthBridgeController extends Controller
         );
     }
 
-
-    /**
-     * @throws InvalidStateException
-     */
     private function validateState(Request $request): void
     {
         if (!app()->isProduction()) {

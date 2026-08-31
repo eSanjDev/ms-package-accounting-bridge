@@ -82,8 +82,9 @@ return [
     | Redirect URL Configuration
     |--------------------------------------------------------------------------
     |
-    | The default redirect URL for OAuth callbacks.
-    | This can be overridden at runtime by passing callback_url query parameter.
+    | The redirect URL for OAuth callbacks. Config/env only — a ?callback_url=
+    | query parameter on the redirect route is ignored, since an attacker-supplied
+    | callback is an open redirect.
     |
     | Examples:
     | - Default: Uses this configured URL
@@ -122,8 +123,9 @@ return [
     | Success Redirect URL
     |--------------------------------------------------------------------------
     |
-    | Where to redirect after successful authentication.
-    | Can be overridden at runtime via success_redirect query parameter.
+    | Where to redirect after successful authentication. Config/env only — a
+    | ?success_redirect= query parameter is ignored, since an attacker-supplied
+    | target is an open redirect.
     |
     */
     'success_redirect' => env('ACCOUNTING_BRIDGE_SUCCESS_REDIRECT', '/'),
