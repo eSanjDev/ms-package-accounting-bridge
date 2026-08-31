@@ -12,6 +12,7 @@ use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\ConfigurationException;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
+use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Esanj\AuthBridge\Support\TokenSessionStore;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
@@ -30,6 +31,8 @@ use Throwable;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
 {
+    use ResolvesBaseUrl;
+
     private const OAUTH_TOKEN_PATH = '/oauth/token';
     private const OAUTH_AUTHORIZE_PATH = '/oauth/authorize';
     private const DEFAULT_REFRESH_BUFFER_SECONDS = 60;
@@ -66,7 +69,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     {
         $config = (array) (config('esanj.auth_bridge') ?? []);
 
-        $this->baseUrl = $this->resolveBaseUrl($config);
+        $this->baseUrl = $this->resolveBaseUrl();
         $this->clientId = (string) ($config['client_id'] ?? '');
         $this->clientSecret = (string) ($config['client_secret'] ?? '');
 
@@ -81,23 +84,6 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $this->logChannel = $config['log_channel'] ?? null;
         $buffer = (int) ($config['refresh_buffer_seconds'] ?? self::DEFAULT_REFRESH_BUFFER_SECONDS);
         $this->refreshBufferSeconds = max(0, min($buffer, self::MAX_REFRESH_BUFFER_SECONDS));
-    }
-
-    private function resolveBaseUrl(array $config): string
-    {
-        $baseUrl = rtrim((string) ($config['base_url'] ?? ''), '/');
-
-        if ($baseUrl === '' || !filter_var($baseUrl, FILTER_VALIDATE_URL)) {
-            throw ConfigurationException::invalidBaseUrl($baseUrl);
-        }
-
-        $allowInsecure = (bool) ($config['allow_insecure_base_url'] ?? false);
-
-        if (!$allowInsecure && app()->isProduction() && !str_starts_with($baseUrl, 'https://')) {
-            throw ConfigurationException::insecureBaseUrl($baseUrl);
-        }
-
-        return $baseUrl;
     }
 
     private function resolveRedirectUrl(array $config): string

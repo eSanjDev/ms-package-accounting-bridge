@@ -11,6 +11,7 @@ use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\ExtractJWTException;
 use Esanj\AuthBridge\Exceptions\TokenRequestException;
+use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Http\Client\ConnectionException;
@@ -23,6 +24,8 @@ use UnexpectedValueException;
 
 class ClientCredentialsService implements ClientCredentialsServiceInterface
 {
+    use ResolvesBaseUrl;
+
     private const OAUTH_TOKEN_PATH = '/oauth/token';
     private const CACHE_PREFIX = 'auth_bridge_cc_token_';
     private const CACHE_BUFFER_SECONDS = 60;
@@ -36,7 +39,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('esanj.auth_bridge.base_url', ''), '/');
+        $this->baseUrl = $this->resolveBaseUrl();
     }
 
     public function getAccessToken(string $clientId, string $clientSecret, ?string $scope = null): TokenData
