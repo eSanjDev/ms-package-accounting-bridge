@@ -27,6 +27,11 @@ class AuthBridgeException extends Exception implements HttpExceptionInterface
         return $this->context;
     }
 
+    public function context(): array
+    {
+        return $this->context;
+    }
+
     public function getStatusCode(): int
     {
         $code = $this->getCode();

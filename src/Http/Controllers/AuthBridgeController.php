@@ -13,6 +13,16 @@ use Illuminate\Routing\Controller;
 
 class AuthBridgeController extends Controller
 {
+    private const OAUTH_ERROR_CODES = [
+        'invalid_request',
+        'unauthorized_client',
+        'access_denied',
+        'unsupported_response_type',
+        'invalid_scope',
+        'server_error',
+        'temporarily_unavailable',
+    ];
+
     public function __construct(
         private readonly AuthBridgeServiceInterface $authBridgeService
     )
@@ -49,10 +59,14 @@ class AuthBridgeController extends Controller
             return $code;
         }
 
-        $error = $request->input('error_description', $request->input('error'));
+        $error = $request->input('error');
 
-        throw TokenExchangeException::failed(
-            is_string($error) && $error !== '' ? $error : 'Authorization code is missing'
+        throw TokenExchangeException::authorizationFailed(
+            is_string($error) && in_array($error, self::OAUTH_ERROR_CODES, true) ? $error : null,
+            array_filter([
+                'error' => $request->input('error'),
+                'error_description' => $request->input('error_description'),
+            ], 'is_scalar')
         );
     }
 

@@ -19,6 +19,17 @@ class TokenExchangeException extends AuthBridgeException
         );
     }
 
+    public static function authorizationFailed(?string $errorCode = null, array $context = []): self
+    {
+        return new self(
+            message: $errorCode === null
+                ? 'Authorization code is missing'
+                : "The authorization server returned an error ({$errorCode})",
+            code: 400,
+            context: $context
+        );
+    }
+
     public static function connectionFailed(string $error): self
     {
         return new self(
