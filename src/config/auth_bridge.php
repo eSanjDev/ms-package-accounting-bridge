@@ -87,9 +87,9 @@ return [
     | callback is an open redirect.
     |
     | Examples:
-    | - Default: Uses this configured URL
+    | - Default: the route this package registers, under APP_URL
     | - Custom absolute: https://example.com/custom/callback
-    | - Custom relative: /my-app/oauth/callback (will be prefixed with APP_URL)
+    | - Custom relative: /my-app/oauth/callback (expanded against APP_URL)
     |
     */
     'redirect_url' => env('ACCOUNTING_BRIDGE_REDIRECT_URL', $defaultRedirectUrl),

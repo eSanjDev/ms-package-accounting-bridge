@@ -73,7 +73,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         if ($this->clientId === '' || $this->clientSecret === '') {
             throw ConfigurationException::missingCredentials();
         }
-        $this->defaultRedirectUrl = $config['redirect_url'] ?? '';
+        $this->defaultRedirectUrl = $this->resolveRedirectUrl($config);
         $this->prompt = $config['auth2_prompt'] ?? 'consent';
         $this->scope = (string) ($config['scope'] ?? '');
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
@@ -98,6 +98,17 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         return $baseUrl;
+    }
+
+    private function resolveRedirectUrl(array $config): string
+    {
+        $redirectUrl = trim((string) ($config['redirect_url'] ?? ''));
+
+        if (!str_starts_with($redirectUrl, '/') || str_starts_with($redirectUrl, '//')) {
+            return $redirectUrl;
+        }
+
+        return rtrim((string) config('app.url', ''), '/') . $redirectUrl;
     }
 
     public function buildAuthorizationUrl(): string
