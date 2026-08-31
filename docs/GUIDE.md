@@ -249,7 +249,7 @@ Http::withHeaders(['Authorization' => AuthBridge::getAuthorizationHeader()])
 ```php
 $accessToken = session('auth_bridge.access_token');
 $refreshToken = session('auth_bridge.refresh_token');
-$expiresAt    = session('auth_bridge.expires_at');
+$expiresAt    = session('auth_bridge.expires_at'); // ISO 8601 with offset, e.g. 2026-01-01T12:00:00+03:30
 ```
 
 Prefer the facade whenever you're about to *use* the token.

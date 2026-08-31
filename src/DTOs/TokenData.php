@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Esanj\AuthBridge\DTOs;
 
 use DateTimeImmutable;
+use DateTimeInterface;
 use Exception;
 use InvalidArgumentException;
 use JsonSerializable;
@@ -74,7 +75,7 @@ final readonly class TokenData implements JsonSerializable
             'expires_in' => $this->expiresIn,
             'refresh_token' => $this->refreshToken,
             'scope' => $this->scope,
-            'expires_at' => $this->expiresAt->format('Y-m-d H:i:s'),
+            'expires_at' => $this->expiresAt->format(DateTimeInterface::ATOM),
         ];
     }
 
