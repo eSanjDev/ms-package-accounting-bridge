@@ -274,7 +274,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private function performRefresh(TokenData $token): ?TokenData
     {
         try {
-            $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope);
+            $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope)
+                ->carryForwardFrom($token);
         } catch (TokenExchangeException $e) {
             return $this->handleFailedRefresh($token, $e);
         }

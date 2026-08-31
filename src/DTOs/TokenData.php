@@ -67,6 +67,25 @@ final readonly class TokenData implements JsonSerializable
         return (new DateTimeImmutable())->modify('-1 second');
     }
 
+    public function carryForwardFrom(self $previous): self
+    {
+        $refreshToken = $this->hasRefreshToken() ? $this->refreshToken : $previous->refreshToken;
+        $scope = ($this->scope !== null && $this->scope !== '') ? $this->scope : $previous->scope;
+
+        if ($refreshToken === $this->refreshToken && $scope === $this->scope) {
+            return $this;
+        }
+
+        return new self(
+            accessToken: $this->accessToken,
+            tokenType: $this->tokenType,
+            expiresIn: $this->expiresIn,
+            refreshToken: $refreshToken,
+            scope: $scope,
+            expiresAt: $this->expiresAt,
+        );
+    }
+
     public function toArray(): array
     {
         return [
