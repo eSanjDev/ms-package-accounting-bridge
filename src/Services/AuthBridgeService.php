@@ -17,6 +17,7 @@ use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -38,6 +39,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const REFRESH_LOCK_WAIT_SECONDS = 5;
     private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
     private const REVOKE_TIMEOUT_SECONDS = 5;
+    private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
+    private const TOKEN_TIMEOUT_SECONDS = 10;
     private const GRANT_REJECTED_STATUSES = [400, 401];
 
     private string $baseUrl;
@@ -121,7 +124,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function exchangeAuthorizationCodeForAccessToken(string $code): TokenData
     {
         try {
-            $response = Http::asForm()->post($this->getBaseUrl() . self::OAUTH_TOKEN_PATH, [
+            $response = $this->tokenRequest()->post($this->getBaseUrl() . self::OAUTH_TOKEN_PATH, [
                 'grant_type' => 'authorization_code',
                 'client_id' => $this->getClientId(),
                 'client_secret' => $this->getClientSecret(),
@@ -158,7 +161,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         try {
-            $response = Http::asForm()->post($this->getBaseUrl() . $this->refreshTokenPath, $payload);
+            $response = $this->tokenRequest()->post($this->getBaseUrl() . $this->refreshTokenPath, $payload);
         } catch (ConnectionException $e) {
             $exception = TokenExchangeException::connectionFailed($e->getMessage());
             TokenExchangeFailed::dispatch($exception, 'refresh_token');
@@ -173,6 +176,14 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         return $this->tokenFromResponse($response, 'refresh_token');
+    }
+
+    private function tokenRequest(): PendingRequest
+    {
+        return Http::asForm()
+            ->acceptJson()
+            ->connectTimeout(self::TOKEN_CONNECT_TIMEOUT_SECONDS)
+            ->timeout(self::TOKEN_TIMEOUT_SECONDS);
     }
 
     private function safeContext(Response $response): array
@@ -390,6 +401,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         try {
             $response = Http::asForm()
+                ->acceptJson()
+                ->connectTimeout(self::TOKEN_CONNECT_TIMEOUT_SECONDS)
                 ->timeout(self::REVOKE_TIMEOUT_SECONDS)
                 ->post($this->getBaseUrl() . $this->revokeTokenPath, [
                     'client_id' => $this->getClientId(),

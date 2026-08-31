@@ -28,6 +28,8 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     private const CACHE_BUFFER_SECONDS = 60;
     private const DEFAULT_EXPIRES_IN = 3600;
     private const DEFAULT_SCOPE = '*';
+    private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
+    private const TOKEN_TIMEOUT_SECONDS = 10;
 
     private string $baseUrl;
     private ?string $publicKey = null;
@@ -80,7 +82,11 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     private function requestToken(string $clientId, string $clientSecret, ?string $scope): TokenData
     {
         try {
-            $response = Http::asForm()->post($this->baseUrl . self::OAUTH_TOKEN_PATH, [
+            $response = Http::asForm()
+                ->acceptJson()
+                ->connectTimeout(self::TOKEN_CONNECT_TIMEOUT_SECONDS)
+                ->timeout(self::TOKEN_TIMEOUT_SECONDS)
+                ->post($this->baseUrl . self::OAUTH_TOKEN_PATH, [
                 'grant_type' => 'client_credentials',
                 'client_id' => $clientId,
                 'client_secret' => $clientSecret,
