@@ -38,6 +38,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const REFRESH_LOCK_WAIT_SECONDS = 5;
     private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
     private const REVOKE_TIMEOUT_SECONDS = 5;
+    private const GRANT_REJECTED_STATUSES = [400, 401];
 
     private string $baseUrl;
     private string $clientId;
@@ -292,7 +293,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             return $token;
         }
 
-        if ($e->getCode() >= 400 && $e->getCode() < 500) {
+        if (in_array($e->getCode(), self::GRANT_REJECTED_STATUSES, true)) {
             $this->clearToken();
         }
 
