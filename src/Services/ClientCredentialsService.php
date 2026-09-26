@@ -15,6 +15,8 @@ use Esanj\AuthBridge\Services\Concerns\ReadsOAuthError;
 use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Illuminate\Contracts\Cache\LockProvider;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -35,6 +37,9 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     private const DEFAULT_SCOPE = '*';
     private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
     private const TOKEN_TIMEOUT_SECONDS = 10;
+    private const LOCK_SUFFIX = ':lock';
+    private const LOCK_TTL_SECONDS = 20;
+    private const LOCK_WAIT_SECONDS = 5;
 
     private string $baseUrl;
     private ?string $publicKey = null;
@@ -48,12 +53,8 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     {
         $cacheKey = $this->buildCacheKey($clientId, $clientSecret, $scope);
 
-        $cached = $this->cachedToken($cacheKey);
-        if ($cached !== null && !$cached->isExpired()) {
-            return $cached;
-        }
-
-        return $this->requestAndCacheToken($clientId, $clientSecret, $scope, $cacheKey);
+        return $this->cachedToken($cacheKey)
+            ?? $this->requestUnderLock($clientId, $clientSecret, $scope, $cacheKey);
     }
 
     // Stored as an array: objects come back as __PHP_Incomplete_Class under cache.serializable_classes=false.
@@ -65,9 +66,33 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         }
 
         try {
-            return TokenData::fromStorage($cached);
+            $token = TokenData::fromStorage($cached);
         } catch (InvalidArgumentException) {
             return null;
+        }
+
+        return $token->isExpired() ? null : $token;
+    }
+
+    private function requestUnderLock(string $clientId, string $clientSecret, ?string $scope, string $cacheKey): TokenData
+    {
+        if (!Cache::getStore() instanceof LockProvider) {
+            return $this->requestAndCacheToken($clientId, $clientSecret, $scope, $cacheKey);
+        }
+
+        $lock = Cache::lock($cacheKey . self::LOCK_SUFFIX, self::LOCK_TTL_SECONDS);
+
+        try {
+            $lock->block(self::LOCK_WAIT_SECONDS);
+        } catch (LockTimeoutException) {
+            $lock = null;
+        }
+
+        try {
+            return $this->cachedToken($cacheKey)
+                ?? $this->requestAndCacheToken($clientId, $clientSecret, $scope, $cacheKey);
+        } finally {
+            $lock?->release();
         }
     }
 
