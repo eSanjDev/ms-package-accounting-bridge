@@ -283,7 +283,8 @@ A valid signature only proves the token came from the OAuth server — on a mult
 application's tokens carry that same signature. `extractJwt()` therefore also requires the `aud` claim to be your
 own `client_id`, and rejects the token otherwise (RFC 8725 §3.9). If your app legitimately handles tokens issued to
 other clients, list them in `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`; the exception's `getContext()` shows the `aud`
-that was seen and what was expected.
+that was seen and what was expected. With neither `ACCOUNTING_BRIDGE_CLIENT_ID` nor
+`ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` set, every token is rejected.
 
 ## Events
 

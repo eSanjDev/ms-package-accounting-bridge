@@ -384,7 +384,8 @@ Either way the key is read once per request, not once per `extractJwt()` call.
 > token minted for a different application on that server verifies here just as well. `extractJwt()` also requires
 > `aud` to match — by default your own `client_id`, or the comma‑separated list in
 > `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`. Set `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` to pin `iss` as well. A token
-> without an `aud` claim is rejected; if your server does not issue one, name the accepted value explicitly.
+> without an `aud` claim is rejected; if your server does not issue one, name the accepted value explicitly. With
+> neither `ACCOUNTING_BRIDGE_CLIENT_ID` nor `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` set, every token is rejected.
 
 ---
 
