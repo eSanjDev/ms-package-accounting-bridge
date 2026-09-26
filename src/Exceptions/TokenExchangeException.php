@@ -38,6 +38,15 @@ class TokenExchangeException extends AuthBridgeException
         );
     }
 
+    public static function revocationFailed(string $error, int $statusCode = 503, array $context = []): self
+    {
+        return new self(
+            message: "Token revocation failed: {$error}",
+            code: $statusCode,
+            context: $context
+        );
+    }
+
     public static function malformedResponse(array $context = []): self
     {
         return new self(

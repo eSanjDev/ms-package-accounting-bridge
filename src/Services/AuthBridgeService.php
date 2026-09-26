@@ -415,11 +415,13 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     {
         $token = $this->store->get();
 
-        if ($token !== null) {
-            $this->revokeOnServer($token);
+        try {
+            if ($token !== null) {
+                $this->revokeOnServer($token);
+            }
+        } finally {
+            $this->clearToken();
         }
-
-        $this->clearToken();
     }
 
     private function revokeOnServer(TokenData $token): void
@@ -439,18 +441,29 @@ class AuthBridgeService implements AuthBridgeServiceInterface
                     'token' => $token->refreshToken ?? $token->accessToken,
                     'token_type_hint' => $token->hasRefreshToken() ? 'refresh_token' : 'access_token',
                 ]);
-
-            if ($response->failed()) {
-                $this->log()->warning('Auth bridge: the OAuth server rejected the token revocation', [
-                    'status' => $response->status(),
-                    'path' => $this->revokeTokenPath,
-                ]);
-            }
         } catch (Throwable $e) {
             $this->log()->warning('Auth bridge: token revocation could not be delivered', [
                 'error' => $e->getMessage(),
                 'path' => $this->revokeTokenPath,
             ]);
+            TokenExchangeFailed::dispatch(TokenExchangeException::revocationFailed($e->getMessage()), 'revoke');
+
+            return;
+        }
+
+        if ($response->failed()) {
+            $this->log()->warning('Auth bridge: the OAuth server rejected the token revocation', [
+                'status' => $response->status(),
+                'path' => $this->revokeTokenPath,
+            ]);
+            TokenExchangeFailed::dispatch(
+                TokenExchangeException::revocationFailed(
+                    $this->oauthError($response),
+                    $response->status(),
+                    $this->safeContext($response)
+                ),
+                'revoke'
+            );
         }
     }
 
