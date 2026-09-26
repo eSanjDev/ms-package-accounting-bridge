@@ -381,6 +381,21 @@ only the standard OAuth error fields (`error`, `error_description`, `error_uri`,
 That matters because logs are usually readable by more people than tokens are, get shipped to third parties, and
 are kept for a long time. If you build your own context, keep it to the same shape.
 
+## Upgrading to 1.0.1
+
+- **`firebase/php-jwt` 7 is required** — every 6.x release carries a security advisory that Composer 2.9+ refuses to
+  install. php-jwt 7 also refuses RSA keys shorter than 2048 bits
+  (`openssl rsa -pubin -in oauth-public.key -text -noout`).
+- **`extractJwt()` rejects every token when no audience is configured** (neither `ACCOUNTING_BRIDGE_CLIENT_ID` nor
+  `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`). A service that accepts tokens issued to other clients must list them in
+  `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`.
+- **If you copied the `HandleTokenReceived` example**, add the `authorization_code` guard from
+  [Step 3](#authorization-code-flow-user-login) — `TokenReceived` also fires on every silent refresh and for client
+  credentials.
+- **Client-credentials tokens are cached as plain arrays**, so the cache also works with
+  `cache.serializable_classes = false`. Tokens cached by 1.0.0 are ignored once: one extra token request per client.
+- **A failed server-side revocation also dispatches `TokenExchangeFailed`** (grant type `revoke`).
+
 ## Notes & limitations
 
 - **State (CSRF) validation runs only in production** (`app()->isProduction()`). In local/testing environments the
