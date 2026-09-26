@@ -132,11 +132,11 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
                 ->connectTimeout(self::TOKEN_CONNECT_TIMEOUT_SECONDS)
                 ->timeout(self::TOKEN_TIMEOUT_SECONDS)
                 ->post($this->baseUrl . self::OAUTH_TOKEN_PATH, [
-                'grant_type' => 'client_credentials',
-                'client_id' => $clientId,
-                'client_secret' => $clientSecret,
-                'scope' => $scope ?? self::DEFAULT_SCOPE,
-            ]);
+                    'grant_type' => 'client_credentials',
+                    'client_id' => $clientId,
+                    'client_secret' => $clientSecret,
+                    'scope' => $scope ?? self::DEFAULT_SCOPE,
+                ]);
         } catch (ConnectionException $e) {
             $this->logError($clientId, 0, $e->getMessage());
             $exception = TokenRequestException::connectionFailed($clientId, $e->getMessage());
@@ -204,7 +204,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
             return $this->publicKey;
         }
 
-        $inline = (string) (config('esanj.auth_bridge.public_key') ?? '');
+        $inline = (string)(config('esanj.auth_bridge.public_key') ?? '');
 
         if (trim($inline) !== '') {
             if (!str_contains($inline, 'BEGIN PUBLIC KEY')) {
@@ -214,7 +214,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
             return $this->publicKey = $inline;
         }
 
-        $path = (string) (config('esanj.auth_bridge.public_key_path') ?? '');
+        $path = (string)(config('esanj.auth_bridge.public_key_path') ?? '');
 
         if ($path === '' || !is_readable($path)) {
             throw ExtractJWTException::publicKeyNotFound($path);
@@ -232,7 +232,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     private function assertAudience(stdClass $decoded): void
     {
         $expected = config('esanj.auth_bridge.expected_audiences')
-            ?: array_filter([(string) config('esanj.auth_bridge.client_id')]);
+            ?: array_filter([(string)config('esanj.auth_bridge.client_id')]);
 
         if ($expected === []) {
             throw ExtractJWTException::invalidToken(
