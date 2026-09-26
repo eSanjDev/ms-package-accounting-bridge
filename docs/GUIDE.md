@@ -589,7 +589,7 @@ $token = app(ClientCredentialsServiceInterface::class)
 | I want to...                     | Do this                                                      |
 |----------------------------------|--------------------------------------------------------------|
 | Add a login button               | link to `route('auth-bridge.redirect')`                      |
-| Log the user in after OAuth      | a `TokenReceived` listener → `Auth::login(...)`              |
+| Log the user in after OAuth      | a `TokenReceived` listener, `authorization_code` only → `Auth::login(...)` |
 | Get the token later              | `session('auth_bridge.access_token')` or `AuthBridge::getAccessToken()` |
 | Call another API as the server   | `ClientCredentialsServiceInterface::getAccessToken()`        |
 | Verify a JWT                     | `extractJwt($jwt)` + an `oauth-public.key` file              |
