@@ -165,6 +165,11 @@ class HandleTokenReceived
 {
     public function handle(TokenReceived $event): void
     {
+        // TokenReceived also fires on silent refresh and client-credentials; only log in on a real login.
+        if ($event->grantType !== 'authorization_code') {
+            return;
+        }
+
         $token = $event->tokenData;   // contains accessToken, refreshToken, expiresAt, ...
 
         // Read the user info out of the JWT access token:
@@ -197,8 +202,9 @@ That's it — users can now log in. After the listener runs, the package redirec
 `success_redirect`.
 
 > 💡 `TokenReceived` also fires for the client‑credentials flow **and on every silent refresh** (grant type
-> `refresh_token`). If your listener logs the user in, guard it so it only runs on a real login —
-> `if ($event->grantType !== 'authorization_code') return;` — otherwise it would re‑run on each background refresh.
+> `refresh_token`) — that's why the listener above starts with the `authorization_code` guard. Keep it: without it,
+> `Auth::login()` would re‑run on each background refresh and regenerate the session id. If your listener does
+> other work on refresh too (logging, syncing), limit only the login branch with the guard.
 
 ---
 
@@ -566,6 +572,7 @@ php artisan config:clear     # after any config/.env change
 return redirect()->route('auth-bridge.redirect');
 
 // Handle the token (in a TokenReceived listener)
+if ($event->grantType !== 'authorization_code') return;
 $jwt = app(ClientCredentialsServiceInterface::class)->extractJwt($event->tokenData->accessToken);
 Auth::login(User::firstOrCreate(['oauth_id' => $jwt->sub], [...]));
 

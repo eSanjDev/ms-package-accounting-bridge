@@ -142,7 +142,8 @@ the `code` for a token, regenerates the session id, stores the token in the sess
 
 The regeneration happens before the token is written, so a session id planted in the browser before the login is
 never the one holding the token. Session data carries over, and the later `session()->migrate(true)` that
-`Auth::login()` performs is harmless.
+`Auth::login()` performs on this login path is harmless. Call `Auth::login()` only on a real login, though —
+`TokenReceived` also fires on every silent refresh (see the guard in Step 3).
 
 > ℹ️ `success_redirect` and the callback URL are taken from **config/env**. (Passing them as query parameters to
 > the route is **not** currently supported — see [Notes](#notes--limitations).)
@@ -160,9 +161,12 @@ class HandleTokenReceived
 {
     public function handle(TokenReceived $event): void
     {
-        $token = $event->tokenData;                 // TokenData DTO
-        // $event->grantType === 'authorization_code'
+        // TokenReceived also fires on silent refresh and client-credentials; only log in on a real login.
+        if ($event->grantType !== 'authorization_code') {
+            return;
+        }
 
+        $token = $event->tokenData;                 // TokenData DTO
         $jwt = app(ClientCredentialsServiceInterface::class)->extractJwt($token->accessToken);
 
         $user = User::firstOrCreate(
