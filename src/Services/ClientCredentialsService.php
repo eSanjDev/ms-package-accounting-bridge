@@ -11,6 +11,7 @@ use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\ExtractJWTException;
 use Esanj\AuthBridge\Exceptions\TokenRequestException;
+use Esanj\AuthBridge\Services\Concerns\ReadsOAuthError;
 use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -24,6 +25,7 @@ use UnexpectedValueException;
 
 class ClientCredentialsService implements ClientCredentialsServiceInterface
 {
+    use ReadsOAuthError;
     use ResolvesBaseUrl;
 
     private const OAUTH_TOKEN_PATH = '/oauth/token';
@@ -118,7 +120,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         }
 
         if ($response->failed()) {
-            $error = $response->json('error_description', $response->json('error', 'Unknown error'));
+            $error = $this->oauthError($response);
             $this->logError($clientId, $response->status(), $error);
             $exception = TokenRequestException::failed($clientId, $error, $response->status());
             TokenExchangeFailed::dispatch($exception, 'client_credentials');

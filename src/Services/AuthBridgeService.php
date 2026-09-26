@@ -12,6 +12,7 @@ use Esanj\AuthBridge\Events\TokenExchangeFailed;
 use Esanj\AuthBridge\Events\TokenReceived;
 use Esanj\AuthBridge\Exceptions\ConfigurationException;
 use Esanj\AuthBridge\Exceptions\TokenExchangeException;
+use Esanj\AuthBridge\Services\Concerns\ReadsOAuthError;
 use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Esanj\AuthBridge\Support\TokenSessionStore;
 use Illuminate\Contracts\Cache\Lock;
@@ -32,6 +33,7 @@ use Throwable;
 
 class AuthBridgeService implements AuthBridgeServiceInterface
 {
+    use ReadsOAuthError;
     use ResolvesBaseUrl;
 
     private const OAUTH_TOKEN_PATH = '/oauth/token';
@@ -157,7 +159,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         if ($response->failed()) {
-            $error = $response->json('error_description', $response->json('error', 'Unknown error'));
+            $error = $this->oauthError($response);
             $exception = TokenExchangeException::failed($error, $response->status(), $this->safeContext($response));
             TokenExchangeFailed::dispatch($exception);
             throw $exception;
@@ -188,7 +190,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         if ($response->failed()) {
-            $error = $response->json('error_description', $response->json('error', 'Unknown error'));
+            $error = $this->oauthError($response);
             $exception = TokenExchangeException::failed($error, $response->status(), $this->safeContext($response));
             TokenExchangeFailed::dispatch($exception, 'refresh_token');
             throw $exception;
