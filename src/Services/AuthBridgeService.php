@@ -304,6 +304,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     private function performRefresh(TokenData $token): ?TokenData
     {
+        $sharedTokenKey = $this->sharedTokenKey();
+
         try {
             $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope)
                 ->carryForwardFrom($token);
@@ -312,7 +314,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         $this->store->put($refreshed);
-        $this->shareToken($refreshed);
+        $this->shareToken($refreshed, $sharedTokenKey);
 
         return $refreshed;
     }
@@ -355,9 +357,9 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         return $shared;
     }
 
-    private function shareToken(TokenData $token): void
+    private function shareToken(TokenData $token, string $key): void
     {
-        Cache::put($this->sharedTokenKey(), $token->toArray(), max(1, $token->expiresIn));
+        Cache::put($key, $token->toArray(), max(1, $token->expiresIn));
     }
 
     private function sharedTokenKey(): string
@@ -387,7 +389,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function storeToken(TokenData $tokenData): void
     {
         $this->store->put($tokenData);
-        $this->shareToken($tokenData);
+        $this->shareToken($tokenData, $this->sharedTokenKey());
 
         $this->memoizedToken = $tokenData;
         $this->memoized = true;
