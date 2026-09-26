@@ -208,7 +208,9 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
             ?: array_filter([(string) config('esanj.auth_bridge.client_id')]);
 
         if ($expected === []) {
-            return;
+            throw ExtractJWTException::invalidToken(
+                'No expected audience is configured. Set ACCOUNTING_BRIDGE_CLIENT_ID or ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE.'
+            );
         }
 
         $aud = $decoded->aud ?? null;

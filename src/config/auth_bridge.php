@@ -187,7 +187,8 @@ return [
     | A valid signature only proves a token came from the OAuth server — not that
     | it was issued for *this* client. The audience defaults to your own
     | client_id; set a comma-separated list here only if you genuinely need to
-    | accept tokens issued to other clients on the same server. The issuer check
+    | accept tokens issued to other clients on the same server. With neither
+    | client_id nor this list set, every token is rejected. The issuer check
     | is skipped while expected_issuer is empty.
     |
     */
