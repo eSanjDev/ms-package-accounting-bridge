@@ -46,12 +46,27 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
     {
         $cacheKey = $this->buildCacheKey($clientId, $clientSecret, $scope);
 
-        $cached = Cache::get($cacheKey);
-        if ($cached instanceof TokenData && !$cached->isExpired()) {
+        $cached = $this->cachedToken($cacheKey);
+        if ($cached !== null && !$cached->isExpired()) {
             return $cached;
         }
 
         return $this->requestAndCacheToken($clientId, $clientSecret, $scope, $cacheKey);
+    }
+
+    // Stored as an array: objects come back as __PHP_Incomplete_Class under cache.serializable_classes=false.
+    private function cachedToken(string $cacheKey): ?TokenData
+    {
+        $cached = Cache::get($cacheKey);
+        if (!is_array($cached)) {
+            return null;
+        }
+
+        try {
+            return TokenData::fromStorage($cached);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     public function invalidateToken(string $clientId, string $clientSecret, ?string $scope = null): void
@@ -77,7 +92,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
         $tokenData = $this->requestToken($clientId, $clientSecret, $scope);
 
         $ttl = max($tokenData->expiresIn - self::CACHE_BUFFER_SECONDS, 1);
-        Cache::put($cacheKey, $tokenData, $ttl);
+        Cache::put($cacheKey, $tokenData->toArray(), $ttl);
 
         return $tokenData;
     }
