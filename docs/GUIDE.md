@@ -249,8 +249,8 @@ same here, and note that `CACHE_STORE=file` puts it on disk just as `SESSION_DRI
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
 > revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such
-> route and calling a missing one would fake a successful revocation. Failures are logged, never thrown: a logout
-> always clears the local session.
+> route and calling a missing one would fake a successful revocation. Failures are logged and published as
+> `TokenExchangeFailed` (grant type `revoke`), never thrown: a logout always clears the local session.
 
 Calling another API with it:
 
@@ -395,7 +395,7 @@ Listen to these just like `TokenReceived`:
 
 | Event | Fires when | Use it to… |
 |-------|------------|------------|
-| `TokenExchangeFailed` | A token request/exchange fails. | Log it, alert monitoring, show a friendly error. |
+| `TokenExchangeFailed` | A token request/exchange or a server-side revocation (`grantType` `revoke`) fails. | Log it, alert monitoring, show a friendly error. |
 | `AuthorizationRedirecting` | Right before sending the user to the OAuth server. | Audit/log login attempts. |
 
 ```php

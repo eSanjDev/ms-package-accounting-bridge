@@ -291,7 +291,7 @@ that was seen and what was expected. With neither `ACCOUNTING_BRIDGE_CLIENT_ID` 
 | Event | Fired when | Payload |
 |-------|------------|---------|
 | `TokenReceived` | A token is obtained (either flow). | `TokenData $tokenData`, `string $grantType` |
-| `TokenExchangeFailed` | A token request/exchange fails. | `AuthBridgeException $exception`, `string $grantType` |
+| `TokenExchangeFailed` | A token request/exchange or a server-side revocation (`grantType` `revoke`) fails. | `AuthBridgeException $exception`, `string $grantType` |
 | `AuthorizationRedirecting` | Just before redirecting to the OAuth server. | `AuthorizationRequest $request`, `string $authorizationUrl` |
 
 ## Facade
