@@ -73,7 +73,7 @@ class AuthBridgeController extends Controller
 
     private function validateState(Request $request): void
     {
-        if (!app()->isProduction()) {
+        if (app()->environment(['local', 'testing'])) {
             return;
         }
 

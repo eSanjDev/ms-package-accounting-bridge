@@ -20,7 +20,7 @@ trait ResolvesBaseUrl
 
         $allowInsecure = (bool) ($config['allow_insecure_base_url'] ?? false);
 
-        if (!$allowInsecure && app()->isProduction() && !str_starts_with($baseUrl, 'https://')) {
+        if (!$allowInsecure && !app()->environment(['local', 'testing']) && !str_starts_with($baseUrl, 'https://')) {
             throw ConfigurationException::insecureBaseUrl($baseUrl);
         }
 

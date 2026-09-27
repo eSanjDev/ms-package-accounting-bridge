@@ -19,7 +19,7 @@ class ConfigurationException extends AuthBridgeException
     public static function insecureBaseUrl(string $baseUrl): self
     {
         return new self(
-            message: 'esanj.auth_bridge.base_url must use HTTPS in production, or client_secret travels in '
+            message: 'esanj.auth_bridge.base_url must use HTTPS outside local and testing, or client_secret travels in '
                 . 'cleartext. Set ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=true only when the OAuth server is '
                 . 'reached over a trusted private network.',
             code: 500,
