@@ -12,7 +12,7 @@ happens when a token arrives.
 
 - OAuth 2.0 **Authorization Code** and **Client Credentials** grants.
 - **Silent refresh** — the stored access token is transparently refreshed via its refresh token before it expires, so users never notice.
-- CSRF **state** validation on callback (enforced in production).
+- CSRF **state** validation on callback (enforced everywhere except `local` and `testing`).
 - **Event‑driven**: `TokenReceived`, `TokenExchangeFailed`, `AuthorizationRedirecting`.
 - **JWT** extraction & verification (RS256) against the OAuth server's public key.
 - Automatic **token caching** for the Client Credentials flow.
@@ -52,7 +52,7 @@ ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret
 
 # OAuth server base URL (required)
 ACCOUNTING_BRIDGE_BASE_URL=https://oauth-server.example.com
-ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=false   # allow a non-HTTPS base_url in production
+ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=false   # allow a non-HTTPS base_url outside local/testing
 
 # Authorization prompt: none | consent | login
 ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
@@ -97,8 +97,8 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | Option | Description |
 |--------|-------------|
 | `client_id` / `client_secret` | OAuth 2.0 credentials. |
-| `base_url` | Base URL of the OAuth server. Required, must be a valid URL, and HTTPS in production. |
-| `allow_insecure_base_url` | Permit a non-HTTPS `base_url` in production (default `false`). |
+| `base_url` | Base URL of the OAuth server. Required, must be a valid URL, and HTTPS outside `local`/`testing`. |
+| `allow_insecure_base_url` | Permit a non-HTTPS `base_url` outside `local`/`testing` (default `false`). |
 | `redirect_url` | Callback URL (auto‑generated from `APP_URL` if not set). |
 | `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. |
 | `scope` | Space-separated scopes for the login flow; empty omits `scope` from the request. |
@@ -136,7 +136,7 @@ return redirect()->route('auth-bridge.redirect');
 The package builds the authorization URL, stores a random `state` in the session, fires
 `AuthorizationRedirecting`, and redirects to the OAuth server.
 
-**Step 2 — the callback is handled for you.** On return the package validates `state` (in production), exchanges
+**Step 2 — the callback is handled for you.** On return the package validates `state` (outside local/testing), exchanges
 the `code` for a token, regenerates the session id, stores the token in the session under `auth_bridge`, fires
 `TokenReceived`, and redirects to `config('esanj.auth_bridge.success_redirect')`.
 
@@ -341,7 +341,7 @@ revocation as a known limitation — a logged-out refresh token remains usable u
 | Exception | When |
 |-----------|------|
 | `ConfigurationException` | `base_url` / `client_id` / `client_secret` are missing or invalid. |
-| `InvalidStateException` | The OAuth `state` is missing or doesn't match (production). |
+| `InvalidStateException` | The OAuth `state` is missing or doesn't match (outside local/testing). |
 | `TokenExchangeException` | The authorization‑code exchange fails. |
 | `TokenRequestException` | The client‑credentials token request fails. |
 | `ExtractJWTException` | JWT is invalid/expired, or the public key is missing. |
@@ -400,8 +400,8 @@ are kept for a long time. If you build your own context, keep it to the same sha
 
 ## Notes & limitations
 
-- **State (CSRF) validation runs only in production** (`app()->isProduction()`). In local/testing environments the
-  callback skips the state check for convenience.
+- **State (CSRF) validation runs everywhere except `local` and `testing`**, where the callback skips it for
+  convenience. A staging or any other environment name gets the full check.
 - **No runtime query‑parameter overrides.** `success_redirect` and the callback URL come from config/env only;
   passing `?success_redirect=` or `?callback_url=` to the redirect route has no effect in the current version.
 

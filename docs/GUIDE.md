@@ -443,8 +443,8 @@ ACCOUNTING_BRIDGE_MIDDLEWARE=web           # comma-separated, e.g. web,throttle:
 - When login starts, the package generates a random 40‑character **state** and stores it in the session.
 - On callback, it checks the returned `state` against the stored one and throws `InvalidStateException` if they
   don't match — this blocks CSRF/replay attacks.
-- **This check runs only in production** (`app()->isProduction()`). In local/testing it's skipped so you can test
-  without a perfectly matching session. Don't rely on the check being active in `local`/`testing`.
+- **This check runs everywhere except `local` and `testing`**, where it's skipped so you can test without a
+  perfectly matching session. Staging and any other environment get the full check.
 
 ---
 
@@ -456,7 +456,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 |-----|-----|---------|---------|
 | `client_id` | `ACCOUNTING_BRIDGE_CLIENT_ID` | — | OAuth client id. |
 | `client_secret` | `ACCOUNTING_BRIDGE_CLIENT_SECRET` | — | OAuth client secret. |
-| `allow_insecure_base_url` | `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL` | `false` | Permit a non-HTTPS `base_url` in production. |
+| `allow_insecure_base_url` | `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL` | `false` | Permit a non-HTTPS `base_url` outside `local`/`testing`. |
 | `base_url` | `ACCOUNTING_BRIDGE_BASE_URL` | — | OAuth server base URL. |
 | `redirect_url` | `ACCOUNTING_BRIDGE_REDIRECT_URL` | `APP_URL/{prefix}/{callback}` | Callback URL sent to the server. |
 | `auth2_prompt` | `ACCOUNTING_BRIDGE_OAUTH_PROMPT` | `consent` | `none` / `consent` / `login`. |
@@ -496,7 +496,7 @@ deserves waking someone up is the application's call, not a library's. Everythin
 channel at a `null` driver to silence the log lines entirely and rely on the event alone.
 
 `ConfigurationException` (500) is thrown as soon as the service is resolved, not when a request finally fails:
-`base_url` must be a valid URL and, in production, HTTPS — a missing one used to build a *relative* authorize URL
+`base_url` must be a valid URL and, outside `local`/`testing`, HTTPS — a missing one used to build a *relative* authorize URL
 that sent the user to this application's own `/oauth/authorize` and 404'd with nothing to go on, and a `http://`
 one posts `client_secret` in cleartext. Set `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=true` only when the OAuth
 server sits on a trusted private network. `client_id` and `client_secret` must both be present.
@@ -520,7 +520,7 @@ so a wrong `client_secret` stays visible in your logs while the user gets a `400
 
 ## 18. Troubleshooting
 
-**After login I get an `InvalidStateException` (in production).**
+**After login I get an `InvalidStateException`.**
 The session didn't survive the round trip. Make sure the redirect route uses the `web` middleware (it does by
 default), sessions are configured, and you're not switching domains mid‑flow.
 
