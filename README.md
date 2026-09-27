@@ -382,6 +382,15 @@ only the standard OAuth error fields (`error`, `error_description`, `error_uri`,
 That matters because logs are usually readable by more people than tokens are, get shipped to third parties, and
 are kept for a long time. If you build your own context, keep it to the same shape.
 
+## Upgrading to 1.0.2
+
+- **State validation and the HTTPS check apply to every environment except `local` and `testing`.** A staging (or
+  any non-`production`) environment used to skip both; it now needs a working session round trip and an `https://`
+  `base_url`, or `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=true`.
+- **The cached copy of a refreshed token lives for two minutes**, keyed by the refresh token it replaced, instead of
+  for the token's whole lifetime under a session id that could change and leave it behind. A token stored at login is
+  no longer copied to the cache at all.
+
 ## Upgrading to 1.0.1
 
 - **Laravel 12 or 13 is required.** 10 and 11 are past their security support, and Composer 2.9+ refuses to
