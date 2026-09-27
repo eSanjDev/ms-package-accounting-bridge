@@ -72,7 +72,7 @@ Most apps use the first for login. Use the second when your backend needs its ow
 
 ## 3. Requirements
 
-- PHP 8.2–8.4, Laravel 10–13.
+- PHP 8.2–8.4, Laravel 12–13.
 - An **OAuth 2.0 server** you can reach, plus a **client id/secret** issued by it.
 - For JWT verification: the server's **RS256 public key** as a file on your server.
 - `firebase/php-jwt` is pulled in automatically.
@@ -186,17 +186,7 @@ class HandleTokenReceived
 }
 ```
 
-**Step 2 — register it.**
-- **Laravel 11+** auto‑discovers listeners in `app/Listeners` — nothing to do.
-- **Laravel 10** — add it to `app/Providers/EventServiceProvider.php`:
-
-  ```php
-  protected $listen = [
-      \Esanj\AuthBridge\Events\TokenReceived::class => [
-          \App\Listeners\HandleTokenReceived::class,
-      ],
-  ];
-  ```
+**Step 2 — register it.** Laravel auto‑discovers listeners in `app/Listeners` — nothing to do.
 
 That's it — users can now log in. After the listener runs, the package redirects them to your
 `success_redirect`.
@@ -555,8 +545,7 @@ rather than an error.
 `php artisan config:clear` (and re‑cache with `config:cache` in production).
 
 **My listener never runs.**
-On Laravel 10 you must register it in `EventServiceProvider`. On 11+ confirm it's in `app/Listeners` and typed
-against `TokenReceived`.
+Confirm it's in `app/Listeners` and typed against `TokenReceived`.
 
 ---
 

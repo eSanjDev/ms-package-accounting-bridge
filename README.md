@@ -21,7 +21,7 @@ happens when a token arrives.
 ## Requirements
 
 - **PHP:** 8.2 – 8.4
-- **Laravel:** 10.x – 13.x
+- **Laravel:** 12.x – 13.x
 - **OAuth Server:** any OAuth 2.0 compliant server
 - `firebase/php-jwt` (installed automatically) — used for JWT verification.
 
@@ -179,7 +179,7 @@ class HandleTokenReceived
 }
 ```
 
-Register it (Laravel 11+ auto‑discovers listeners; otherwise add it to your `EventServiceProvider`).
+Laravel auto‑discovers listeners in `app/Listeners`, so there is nothing to register.
 
 **Alternative — read the token from the session:**
 
@@ -383,6 +383,8 @@ are kept for a long time. If you build your own context, keep it to the same sha
 
 ## Upgrading to 1.0.1
 
+- **Laravel 12 or 13 is required.** 10 and 11 are past their security support, and Composer 2.9+ refuses to
+  install any of their releases.
 - **`firebase/php-jwt` 7 is required** — every 6.x release carries a security advisory that Composer 2.9+ refuses to
   install. php-jwt 7 also refuses RSA keys shorter than 2048 bits
   (`openssl rsa -pubin -in oauth-public.key -text -noout`).
