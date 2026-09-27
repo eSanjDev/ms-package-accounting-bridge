@@ -57,13 +57,13 @@ return [
     | Revoke Token Endpoint
     |--------------------------------------------------------------------------
     |
-    | Path (relative to base_url) that revokes a token server-side on logout,
-    | per RFC 7009. Left empty by default because Passport ships no such route:
-    | pointing this at an endpoint that does not exist would make every logout
-    | look like it revoked something when it did not.
+    | Path (relative to base_url) that revokes the session's tokens server-side
+    | on logout. It is called with the user's access token as a Bearer token;
+    | Accounting's /api/auth/logout revokes that access token and every refresh
+    | token issued with it. Set it to an empty string to skip server revocation.
     |
     */
-    'revoke_token_path' => env('ACCOUNTING_BRIDGE_REVOKE_PATH'),
+    'revoke_token_path' => env('ACCOUNTING_BRIDGE_REVOKE_PATH', '/api/auth/logout'),
 
     /*
     |--------------------------------------------------------------------------
@@ -100,10 +100,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | The prompt parameter for OAuth authorization.
-    | Options: none, consent, login
+    | Options: none, consent, login. Empty sends no prompt, so trusted clients
+    | and remembered grants skip the consent screen.
     |
     */
-    'auth2_prompt' => env('ACCOUNTING_BRIDGE_OAUTH_PROMPT', 'consent'),
+    'auth2_prompt' => env('ACCOUNTING_BRIDGE_OAUTH_PROMPT', ''),
 
     /*
     |--------------------------------------------------------------------------

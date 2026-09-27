@@ -54,8 +54,8 @@ ACCOUNTING_BRIDGE_CLIENT_SECRET=your-client-secret
 ACCOUNTING_BRIDGE_BASE_URL=https://oauth-server.example.com
 ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=false   # allow a non-HTTPS base_url outside local/testing
 
-# Authorization prompt: none | consent | login
-ACCOUNTING_BRIDGE_OAUTH_PROMPT=consent
+# Authorization prompt: none | consent | login; empty sends none, so trusted clients skip consent
+ACCOUNTING_BRIDGE_OAUTH_PROMPT=
 ACCOUNTING_BRIDGE_SCOPE=                      # space-separated; empty omits the parameter
 
 # Callback URL (optional — auto-generated from APP_URL + prefix + callback path if unset)
@@ -81,8 +81,8 @@ ACCOUNTING_BRIDGE_EXPECTED_ISSUER=            # e.g. https://accounting.example.
 # Send the user back through login when the callback fails, instead of an error page (optional)
 ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN=false
 
-# RFC 7009 revocation endpoint used by revokeToken(); empty means no server-side revocation
-ACCOUNTING_BRIDGE_REVOKE_PATH=
+# Endpoint revokeToken() calls with the user's access token; empty means no server-side revocation
+ACCOUNTING_BRIDGE_REVOKE_PATH=/api/auth/logout
 
 # Log channel for this package's warnings; empty uses the application's default channel
 ACCOUNTING_BRIDGE_LOG_CHANNEL=
@@ -100,7 +100,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `base_url` | Base URL of the OAuth server. Required, must be a valid URL, and HTTPS outside `local`/`testing`. |
 | `allow_insecure_base_url` | Permit a non-HTTPS `base_url` outside `local`/`testing` (default `false`). |
 | `redirect_url` | Callback URL (auto‑generated from `APP_URL` if not set). |
-| `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. |
+| `auth2_prompt` | OAuth `prompt`: `none`, `consent`, or `login`. Empty (the default) sends none, so the server skips consent for trusted clients. |
 | `scope` | Space-separated scopes for the login flow; empty omits `scope` from the request. |
 | `success_redirect` | Where to redirect after a successful login. |
 | `routes.prefix` / `routes.middleware` | Prefix and middleware for the package routes. |
@@ -111,7 +111,7 @@ ACCOUNTING_BRIDGE_REFRESH_BUFFER=60            # refresh this many seconds befor
 | `expected_issuer` | Required `iss` value; empty means the claim is not checked. |
 | `redirect_on_failed_login` | Retry the login flow on a failed callback instead of rendering an error (default `false`). |
 | `refresh_token_path` | Endpoint for the refresh‑token grant (default `/oauth/token`, Passport standard). |
-| `revoke_token_path` | RFC 7009 revocation endpoint for `revokeToken()`; empty disables server-side revocation. |
+| `revoke_token_path` | Endpoint `revokeToken()` calls with the user's access token (default `/api/auth/logout`); empty disables server-side revocation. |
 | `refresh_buffer_seconds` | Refresh the access token this many seconds before it expires (default `60`, capped at `300`). |
 | `log_channel` | Channel for this package's warnings; empty uses the application's default. |
 | `session_state_key` / `session_token_key` | Session keys (`auth_bridge_state` / `auth_bridge`). |
@@ -322,20 +322,17 @@ twice. Change the session directly instead of through the facade and the memo wi
 
 `clearToken()` only drops the token from the session. The refresh token stays valid on the OAuth server for its
 full lifetime, so anything that has a copy of it — a log line, a session backup, a shared browser — keeps working
-after the user believes they have logged out. `revokeToken()` closes that: it posts the token to the server's
-RFC 7009 revocation endpoint and then clears the session.
-
-That endpoint is **off until you configure it**, because Passport ships no revocation route — pointing at a path
-that does not exist would make every logout look successful while revoking nothing. Add the route on your OAuth
-server, then set:
+after the user believes they have logged out. `revokeToken()` closes that: it calls Accounting's
+`POST /api/auth/logout` with the user's access token (refreshed first if it has expired), which revokes that access
+token and every refresh token issued with it, and then clears the session. Point it elsewhere, or turn it off with
+an empty value:
 
 ```env
-ACCOUNTING_BRIDGE_REVOKE_PATH=/oauth/token/revoke
+ACCOUNTING_BRIDGE_REVOKE_PATH=/api/auth/logout
 ```
 
 Revocation is best effort: if the server is unreachable or rejects the request it is logged as a warning and the
-local session is cleared anyway, so a logout never fails on it. Until the endpoint exists, treat server-side
-revocation as a known limitation — a logged-out refresh token remains usable until it expires.
+local session is cleared anyway, so a logout never fails on it.
 
 ## Error handling
 

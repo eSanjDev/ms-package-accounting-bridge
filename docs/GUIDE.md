@@ -237,10 +237,10 @@ same here, and note that `CACHE_STORE=file` puts it on disk just as `SESSION_DRI
 `clearToken()` and `revokeToken()` forget the copy they can see along with the session one.
 
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
-> server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
-> revocation endpoint first — but only once you set `ACCOUNTING_BRIDGE_REVOKE_PATH`, since Passport ships no such
-> route and calling a missing one would fake a successful revocation. Failures are logged and published as
-> `TokenExchangeFailed` (grant type `revoke`), never thrown: a logout always clears the local session.
+> server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` first calls
+> Accounting's `POST /api/auth/logout` (`ACCOUNTING_BRIDGE_REVOKE_PATH`) with the user's access token, which revokes
+> it and every refresh token issued with it. Failures are logged and published as `TokenExchangeFailed` (grant type
+> `revoke`), never thrown: a logout always clears the local session.
 
 Calling another API with it:
 
@@ -459,7 +459,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `allow_insecure_base_url` | `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL` | `false` | Permit a non-HTTPS `base_url` outside `local`/`testing`. |
 | `base_url` | `ACCOUNTING_BRIDGE_BASE_URL` | — | OAuth server base URL. |
 | `redirect_url` | `ACCOUNTING_BRIDGE_REDIRECT_URL` | `APP_URL/{prefix}/{callback}` | Callback URL sent to the server. |
-| `auth2_prompt` | `ACCOUNTING_BRIDGE_OAUTH_PROMPT` | `consent` | `none` / `consent` / `login`. |
+| `auth2_prompt` | `ACCOUNTING_BRIDGE_OAUTH_PROMPT` | *(empty)* | `none` / `consent` / `login`; empty sends no prompt, so trusted clients skip consent. |
 | `scope` | `ACCOUNTING_BRIDGE_SCOPE` | *(empty)* | Scopes for the login flow; empty omits the parameter so the server's default applies. |
 | `success_redirect` | `ACCOUNTING_BRIDGE_SUCCESS_REDIRECT` | `/` | Where to go after login. |
 | `routes.prefix` | `ACCOUNTING_BRIDGE_ROUTE_PREFIX` | `accounting` | URL prefix for both routes. |
@@ -472,7 +472,7 @@ File: `config/esanj/auth_bridge.php` (key `esanj.auth_bridge`).
 | `expected_issuer` | `ACCOUNTING_BRIDGE_EXPECTED_ISSUER` | *(empty)* | Required `iss`; empty skips the check. |
 | `redirect_on_failed_login` | `ACCOUNTING_BRIDGE_REDIRECT_ON_FAILED_LOGIN` | `false` | Retry login on a failed callback instead of showing an error. |
 | `refresh_token_path` | `ACCOUNTING_BRIDGE_REFRESH_PATH` | `/oauth/token` | Refresh‑token grant endpoint (Passport standard). |
-| `revoke_token_path` | `ACCOUNTING_BRIDGE_REVOKE_PATH` | *(empty)* | RFC 7009 revocation endpoint; empty disables it. |
+| `revoke_token_path` | `ACCOUNTING_BRIDGE_REVOKE_PATH` | `/api/auth/logout` | Called by `revokeToken()` with the user's access token; empty disables it. |
 | `refresh_buffer_seconds` | `ACCOUNTING_BRIDGE_REFRESH_BUFFER` | `60` | Refresh this many seconds before the access token expires. Clamped to `0`–`300`. |
 | `log_channel` | `ACCOUNTING_BRIDGE_LOG_CHANNEL` | *(empty)* | Channel for this package's warnings; empty uses the app's default. |
 | `session_state_key` | — | `auth_bridge_state` | Session key for the state token. |

@@ -12,7 +12,7 @@ final readonly class AuthorizationRequest
         public string  $state,
         public string  $responseType = 'code',
         public string  $scope = '',
-        public string  $prompt = 'consent',
+        public string  $prompt = '',
     ) {}
 
     public function toQueryString(): string

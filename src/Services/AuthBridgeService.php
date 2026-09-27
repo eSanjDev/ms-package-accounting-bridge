@@ -83,7 +83,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
             throw ConfigurationException::missingCredentials();
         }
         $this->defaultRedirectUrl = $this->resolveRedirectUrl($config);
-        $this->prompt = $config['auth2_prompt'] ?? 'consent';
+        $this->prompt = $config['auth2_prompt'] ?? '';
         $this->scope = (string)($config['scope'] ?? '');
         $this->refreshTokenPath = $config['refresh_token_path'] ?? self::OAUTH_TOKEN_PATH;
         $this->revokeTokenPath = (string)($config['revoke_token_path'] ?? '');
@@ -420,30 +420,35 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         try {
             if ($token !== null) {
-                $this->revokeOnServer($token);
+                $this->revokeOnServer();
             }
         } finally {
             $this->clearToken();
         }
     }
 
-    private function revokeOnServer(TokenData $token): void
+    private function revokeOnServer(): void
     {
         if ($this->revokeTokenPath === '') {
             return;
         }
 
         try {
-            $response = Http::asForm()
+            $accessToken = $this->getValidAccessToken();
+
+            if ($accessToken === null || $accessToken === '') {
+                $this->log()->warning('Auth bridge: no valid access token left to revoke on the server', [
+                    'path' => $this->revokeTokenPath,
+                ]);
+
+                return;
+            }
+
+            $response = Http::withToken($accessToken)
                 ->acceptJson()
                 ->connectTimeout(self::TOKEN_CONNECT_TIMEOUT_SECONDS)
                 ->timeout(self::REVOKE_TIMEOUT_SECONDS)
-                ->post($this->getBaseUrl() . $this->revokeTokenPath, [
-                    'client_id' => $this->getClientId(),
-                    'client_secret' => $this->getClientSecret(),
-                    'token' => $token->refreshToken ?? $token->accessToken,
-                    'token_type_hint' => $token->hasRefreshToken() ? 'refresh_token' : 'access_token',
-                ]);
+                ->post($this->getBaseUrl() . $this->revokeTokenPath);
         } catch (Throwable $e) {
             $this->log()->warning('Auth bridge: token revocation could not be delivered', [
                 'error' => $e->getMessage(),
