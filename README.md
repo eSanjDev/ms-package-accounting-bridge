@@ -207,8 +207,9 @@ cleared and the accessors return `null`, so you can send the user back through `
 again. A `5xx` or a connection failure never clears the session — a brief outage of the OAuth server must not log
 everyone out.
 
-Concurrent requests are serialised through a cache lock keyed by session id, and the refreshing request publishes
-its result to the cache so the others adopt it instead of replaying an already-rotated refresh token. **This needs
+Concurrent requests are serialised through a cache lock keyed by the refresh token being spent, and the refreshing
+request publishes its result to the cache for two minutes so the others adopt it instead of replaying an
+already-rotated refresh token. **This needs
 a cache store shared across your web workers** (`redis`, `memcached`, `database`, or `file` on a single host); with
 `CACHE_STORE=array` each process is isolated and the protection is lost. That published copy contains the refresh
 token too — it has to, or the adopting request would keep a rotated-away one — so it is a second unencrypted copy

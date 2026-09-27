@@ -227,14 +227,14 @@ most deployments that is an acceptable, deliberate trade-off; if your Redis snap
 trusted than your application servers, wrap the value in `Crypt::encryptString()` before it is stored. The session
 id itself is regenerated at the callback, so a fixated id never reaches the stored token.
 
-**A second copy lives in the cache.** Every time a token is stored or refreshed the same array — refresh token
-included — is also written to the cache under `auth_bridge:shared-token:{session id}` for the access token's
-lifetime, so a concurrent request that lost the refresh lock adopts the new token instead of replaying an
-already-rotated refresh token. That copy *has* to carry the refresh token: against a server that rotates them,
+**A second copy lives in the cache, briefly.** Every time a token is refreshed the new array — refresh token
+included — is also written to the cache for two minutes, keyed by a hash of the refresh token it replaced, so a
+concurrent request that lost the refresh lock (and still holds the old one) adopts the new token instead of replaying
+an already-rotated refresh token. That copy *has* to carry the refresh token: against a server that rotates them,
 handing over only the access token would leave the losing request holding one the server has just invalidated.
 So hardening the session alone is not enough — if you wrap the session value in `Crypt::encryptString()`, do the
 same here, and note that `CACHE_STORE=file` puts it on disk just as `SESSION_DRIVER=file` does. Both
-`clearToken()` and `revokeToken()` forget this copy along with the session one.
+`clearToken()` and `revokeToken()` forget the copy they can see along with the session one.
 
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` posts to the RFC 7009
@@ -275,7 +275,7 @@ failure leaves the session untouched so the next request can retry.
 
 > ⚠️ **A shared cache store is required.** Servers that rotate refresh tokens (Passport does, via
 > `Passport::$revokeRefreshTokenAfterUse`) invalidate the old one the moment it is used, so parallel requests that
-> each replay the same refresh token would knock each other out. The package takes a cache lock keyed by session id
+> each replay the same refresh token would knock each other out. The package takes a cache lock keyed by that token
 > and publishes the refreshed token to the cache, which is the only way the losing requests can see it — their
 > session snapshot was loaded before the winner wrote to it. Use `redis`, `memcached`, `database`, or `file` on a
 > single host; `array` is per-process and gives no protection.
