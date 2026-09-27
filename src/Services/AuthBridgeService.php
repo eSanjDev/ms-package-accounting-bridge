@@ -44,6 +44,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const REFRESH_LOCK_TTL_SECONDS = 35;
     private const REFRESH_LOCK_WAIT_SECONDS = 5;
     private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
+    private const SHARED_TOKEN_TTL_SECONDS = 120;
     private const REVOKE_TIMEOUT_SECONDS = 5;
     private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
     private const TOKEN_TIMEOUT_SECONDS = 10;
@@ -285,7 +286,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     private function refreshUnderLock(TokenData $token): ?TokenData
     {
-        $lock = $this->refreshLock();
+        $lock = $this->refreshLock($token);
 
         if ($lock === null) {
             return $this->performRefresh($token);
@@ -294,11 +295,11 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         try {
             $lock->block(self::REFRESH_LOCK_WAIT_SECONDS);
         } catch (LockTimeoutException) {
-            return $this->adoptSharedToken() ?? ($token->isExpired() ? null : $token);
+            return $this->adoptSharedToken($token) ?? ($token->isExpired() ? null : $token);
         }
 
         try {
-            return $this->adoptSharedToken() ?? $this->performRefresh($token);
+            return $this->adoptSharedToken($token) ?? $this->performRefresh($token);
         } finally {
             $lock->release();
         }
@@ -306,8 +307,6 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     private function performRefresh(TokenData $token): ?TokenData
     {
-        $sharedTokenKey = $this->sharedTokenKey();
-
         try {
             $refreshed = $this->refreshAccessToken($token->refreshToken, $token->scope)
                 ->carryForwardFrom($token);
@@ -316,7 +315,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         }
 
         $this->store->put($refreshed);
-        $this->shareToken($refreshed, $sharedTokenKey);
+        Cache::put($this->sharedTokenKey($token), $refreshed->toArray(), self::SHARED_TOKEN_TTL_SECONDS);
 
         return $refreshed;
     }
@@ -334,9 +333,9 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         return null;
     }
 
-    private function adoptSharedToken(): ?TokenData
+    private function adoptSharedToken(TokenData $spent): ?TokenData
     {
-        $data = Cache::get($this->sharedTokenKey());
+        $data = Cache::get($this->sharedTokenKey($spent));
 
         if (!is_array($data)) {
             return null;
@@ -345,7 +344,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         try {
             $shared = TokenData::fromStorage($data);
         } catch (InvalidArgumentException) {
-            Cache::forget($this->sharedTokenKey());
+            Cache::forget($this->sharedTokenKey($spent));
 
             return null;
         }
@@ -359,23 +358,23 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         return $shared;
     }
 
-    private function shareToken(TokenData $token, string $key): void
+    // Keyed by the refresh token being spent: every request still holding it finds its replacement, whatever
+    // the session id has become since.
+    private function sharedTokenKey(TokenData $spent): string
     {
-        Cache::put($key, $token->toArray(), max(1, $token->expiresIn));
+        return self::SHARED_TOKEN_PREFIX . hash('sha256', (string)$spent->refreshToken);
     }
 
-    private function sharedTokenKey(): string
-    {
-        return self::SHARED_TOKEN_PREFIX . Session::getId();
-    }
-
-    private function refreshLock(): ?Lock
+    private function refreshLock(TokenData $token): ?Lock
     {
         if (!Cache::getStore() instanceof LockProvider) {
             return null;
         }
 
-        return Cache::lock(self::REFRESH_LOCK_PREFIX . Session::getId(), self::REFRESH_LOCK_TTL_SECONDS);
+        return Cache::lock(
+            self::REFRESH_LOCK_PREFIX . hash('sha256', (string)$token->refreshToken),
+            self::REFRESH_LOCK_TTL_SECONDS
+        );
     }
 
     public function getValidAccessToken(): ?string
@@ -391,7 +390,6 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     public function storeToken(TokenData $tokenData): void
     {
         $this->store->put($tokenData);
-        $this->shareToken($tokenData, $this->sharedTokenKey());
 
         $this->memoizedToken = $tokenData;
         $this->memoized = true;
@@ -399,8 +397,13 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     public function clearToken(): void
     {
+        $token = $this->store->get();
+
+        if ($token?->hasRefreshToken()) {
+            Cache::forget($this->sharedTokenKey($token));
+        }
+
         $this->store->forget();
-        Cache::forget($this->sharedTokenKey());
 
         $this->memoizedToken = null;
         $this->memoized = true;
