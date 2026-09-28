@@ -23,7 +23,8 @@ happens when a token arrives.
 - **PHP:** 8.2 – 8.4
 - **Laravel:** 12.x – 13.x
 - **OAuth Server:** any OAuth 2.0 compliant server
-- `firebase/php-jwt` (installed automatically) — used for JWT verification.
+- `firebase/php-jwt` 7 (installed automatically) — used for JWT verification; it refuses RSA keys shorter than
+  2048 bits (`openssl rsa -pubin -in oauth-public.key -text -noout | head -1`).
 
 ## Installation
 
@@ -378,32 +379,6 @@ try {
 only the standard OAuth error fields (`error`, `error_description`, `error_uri`, `hint`) — never the response body.
 That matters because logs are usually readable by more people than tokens are, get shipped to third parties, and
 are kept for a long time. If you build your own context, keep it to the same shape.
-
-## Upgrading to 1.0.2
-
-- **State validation and the HTTPS check apply to every environment except `local` and `testing`.** A staging (or
-  any non-`production`) environment used to skip both; it now needs a working session round trip and an `https://`
-  `base_url`, or `ACCOUNTING_BRIDGE_ALLOW_INSECURE_BASE_URL=true`.
-- **The cached copy of a refreshed token lives for two minutes**, keyed by the refresh token it replaced, instead of
-  for the token's whole lifetime under a session id that could change and leave it behind. A token stored at login is
-  no longer copied to the cache at all.
-
-## Upgrading to 1.0.1
-
-- **Laravel 12 or 13 is required.** 10 and 11 are past their security support, and Composer 2.9+ refuses to
-  install any of their releases.
-- **`firebase/php-jwt` 7 is required** — every 6.x release carries a security advisory that Composer 2.9+ refuses to
-  install. php-jwt 7 also refuses RSA keys shorter than 2048 bits
-  (`openssl rsa -pubin -in oauth-public.key -text -noout`).
-- **`extractJwt()` rejects every token when no audience is configured** (neither `ACCOUNTING_BRIDGE_CLIENT_ID` nor
-  `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`). A service that accepts tokens issued to other clients must list them in
-  `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`.
-- **If you copied the `HandleTokenReceived` example**, add the `authorization_code` guard from
-  [Step 3](#authorization-code-flow-user-login) — `TokenReceived` also fires on every silent refresh and for client
-  credentials.
-- **Client-credentials tokens are cached as plain arrays**, so the cache also works with
-  `cache.serializable_classes = false`. Tokens cached by 1.0.0 are ignored once: one extra token request per client.
-- **A failed server-side revocation also dispatches `TokenExchangeFailed`** (grant type `revoke`).
 
 ## Notes & limitations
 
