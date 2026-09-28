@@ -288,6 +288,10 @@ other clients, list them in `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE`; the exception
 that was seen and what was expected. With neither `ACCOUNTING_BRIDGE_CLIENT_ID` nor
 `ACCOUNTING_BRIDGE_EXPECTED_AUDIENCE` set, every token is rejected.
 
+A local user model that stands for an Accounting account under a different primary key (a manager keyed by its own
+`id`, with the Accounting id in `esanj_id`) can implement `Esanj\AuthBridge\Contracts\AccountingIdentity` and
+return that `sub` from `accountingId()`; other Esanj packages use it to match the model to the signed-in token.
+
 ## Events
 
 | Event | Fired when | Payload |
