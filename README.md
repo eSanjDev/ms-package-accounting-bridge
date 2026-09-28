@@ -386,6 +386,18 @@ are kept for a long time. If you build your own context, keep it to the same sha
 
 ## Notes & limitations
 
+### API request identity
+
+`RequestTokenContext` is registered with Laravel's scoped lifetime. API authentication middleware may call
+`run($verifiedToken, $next)` to make `getValidToken()` and `getValidAccessToken()` read an already verified
+Accounting token while the callback executes. It does not persist to the session or refresh browser credentials.
+The caller owns token verification and renewal. Passing `null` explicitly prevents session fallback; expired
+tokens also return `null`. Previous context is restored in `finally`, including nested calls and exceptions.
+
+Resolve Auth Bridge through `AuthBridgeServiceInterface` so it shares the scoped context supplied by the provider.
+
+### Deployment settings
+
 - **State (CSRF) validation runs everywhere except `local` and `testing`**, where the callback skips it for
   convenience. A staging or any other environment name gets the full check.
 - **No runtime query‑parameter overrides.** `success_redirect` and the callback URL come from config/env only;
