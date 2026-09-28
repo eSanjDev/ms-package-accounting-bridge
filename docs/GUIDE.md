@@ -234,7 +234,9 @@ an already-rotated refresh token. That copy *has* to carry the refresh token: ag
 handing over only the access token would leave the losing request holding one the server has just invalidated.
 So hardening the session alone is not enough — if you wrap the session value in `Crypt::encryptString()`, do the
 same here, and note that `CACHE_STORE=file` puts it on disk just as `SESSION_DRIVER=file` does. Both
-`clearToken()` and `revokeToken()` forget the copy they can see along with the session one.
+`clearToken()` and `revokeToken()` forget it along with the session one — both the copy made from the current
+token and the one it was adopted from, so a request still holding the older refresh token cannot pick it up after a
+logout.
 
 > ⚠️ **`clearToken()` is not a logout.** It forgets the session copy; the refresh token stays valid on the OAuth
 > server for its whole lifetime, so a leaked copy still works afterwards. `revokeToken()` first calls
@@ -330,7 +332,8 @@ class ReportSync
 }
 ```
 
-- The token is **cached automatically** and reused until ~60 seconds before it expires.
+- The token is **cached automatically**, per OAuth server (`base_url`), and reused until ~60 seconds before it
+  expires.
 - Need a fresh one immediately? Call `invalidateToken()` with the **same** arguments you passed to
   `getAccessToken()` — client id, client secret and scope all take part in the cache key, so a mismatch
   silently clears nothing:
