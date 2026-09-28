@@ -104,7 +104,7 @@ class ClientCredentialsService implements ClientCredentialsServiceInterface
 
     private function buildCacheKey(string $clientId, string $clientSecret, ?string $scope): string
     {
-        $identifier = "{$clientId}_{$clientSecret}_{$scope}";
+        $identifier = json_encode([$this->baseUrl, $clientId, $clientSecret, $scope]);
 
         return self::CACHE_PREFIX . hash('sha256', $identifier);
     }
