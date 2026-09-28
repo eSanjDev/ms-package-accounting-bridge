@@ -45,6 +45,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private const REFRESH_LOCK_WAIT_SECONDS = 5;
     private const SHARED_TOKEN_PREFIX = 'auth_bridge:shared-token:';
     private const SHARED_TOKEN_TTL_SECONDS = 120;
+    private const SHARED_ORIGIN_PREFIX = 'auth_bridge:shared-origin:';
     private const REVOKE_TIMEOUT_SECONDS = 5;
     private const TOKEN_CONNECT_TIMEOUT_SECONDS = 5;
     private const TOKEN_TIMEOUT_SECONDS = 10;
@@ -316,6 +317,11 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
         $this->store->put($refreshed);
         Cache::put($this->sharedTokenKey($token), $refreshed->toArray(), self::SHARED_TOKEN_TTL_SECONDS);
+        Cache::put(
+            self::SHARED_ORIGIN_PREFIX . $this->refreshHash($refreshed),
+            $this->refreshHash($token),
+            self::SHARED_TOKEN_TTL_SECONDS
+        );
 
         return $refreshed;
     }
@@ -362,7 +368,23 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     // the session id has become since.
     private function sharedTokenKey(TokenData $spent): string
     {
-        return self::SHARED_TOKEN_PREFIX . hash('sha256', (string)$spent->refreshToken);
+        return self::SHARED_TOKEN_PREFIX . $this->refreshHash($spent);
+    }
+
+    private function refreshHash(TokenData $token): string
+    {
+        return hash('sha256', (string)$token->refreshToken);
+    }
+
+    private function forgetSharedCopies(TokenData $token): void
+    {
+        $origin = Cache::pull(self::SHARED_ORIGIN_PREFIX . $this->refreshHash($token));
+
+        Cache::forget($this->sharedTokenKey($token));
+
+        if (is_string($origin)) {
+            Cache::forget(self::SHARED_TOKEN_PREFIX . $origin);
+        }
     }
 
     private function refreshLock(TokenData $token): ?Lock
@@ -400,7 +422,7 @@ class AuthBridgeService implements AuthBridgeServiceInterface
         $token = $this->store->get();
 
         if ($token?->hasRefreshToken()) {
-            Cache::forget($this->sharedTokenKey($token));
+            $this->forgetSharedCopies($token);
         }
 
         $this->store->forget();
