@@ -15,6 +15,7 @@ use Esanj\AuthBridge\Exceptions\TokenExchangeException;
 use Esanj\AuthBridge\Services\Concerns\ReadsOAuthError;
 use Esanj\AuthBridge\Services\Concerns\ResolvesBaseUrl;
 use Esanj\AuthBridge\Support\TokenSessionStore;
+use Esanj\AuthBridge\Support\RequestTokenContext;
 use Illuminate\Contracts\Cache\Lock;
 use Illuminate\Contracts\Cache\LockProvider;
 use Illuminate\Contracts\Cache\LockTimeoutException;
@@ -66,7 +67,8 @@ class AuthBridgeService implements AuthBridgeServiceInterface
     private int $refreshBufferSeconds;
 
     public function __construct(
-        private readonly TokenSessionStore $store = new TokenSessionStore()
+        private readonly TokenSessionStore $store = new TokenSessionStore(),
+        private readonly ?RequestTokenContext $requestTokens = null,
     )
     {
         $this->loadConfig();
@@ -246,6 +248,12 @@ class AuthBridgeService implements AuthBridgeServiceInterface
 
     public function getValidToken(): ?TokenData
     {
+        if ($this->requestTokens?->isActive()) {
+            $token = $this->requestTokens->token();
+
+            return $token !== null && !$token->isExpired() ? $token : null;
+        }
+
         if ($this->hasUsableMemo()) {
             return $this->memoizedToken;
         }

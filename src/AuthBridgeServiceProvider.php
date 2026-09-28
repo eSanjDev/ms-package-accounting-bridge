@@ -10,6 +10,7 @@ use Esanj\AuthBridge\Http\Middleware\RefreshExpiredToken;
 use Esanj\AuthBridge\Services\AuthBridgeService;
 use Esanj\AuthBridge\Services\ClientCredentialsService;
 use Esanj\AuthBridge\Support\TokenSessionStore;
+use Esanj\AuthBridge\Support\RequestTokenContext;
 use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 
@@ -39,12 +40,17 @@ class AuthBridgeServiceProvider extends ServiceProvider
 
     private function registerServices(): void
     {
+        $this->app->scoped(RequestTokenContext::class);
+
         $this->app->scoped(TokenSessionStore::class, function ($app) {
             return new TokenSessionStore();
         });
 
         $this->app->scoped(AuthBridgeServiceInterface::class, function ($app) {
-            return new AuthBridgeService($app->make(TokenSessionStore::class));
+            return new AuthBridgeService(
+                $app->make(TokenSessionStore::class),
+                $app->make(RequestTokenContext::class),
+            );
         });
 
         $this->app->scoped(ClientCredentialsServiceInterface::class, function ($app) {
